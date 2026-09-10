@@ -12,13 +12,20 @@ public class ObjectInteraction : MonoBehaviour
     //private Transform _pourPivotGBA; // first child of gelasGabunganX
     //private Transform _pourPivotGBB;
     private GameObject _gObjGelas;
+    private Animator _anim;
 
     private Vector3 _mOffset;
     private float _mZCoor;
     private bool _flagColliderHit = false;
+
+    private Coroutine _coroutine;
+
     private void Awake()
     {
-        _gObjGelas = new GameObject();
+        //_gObjGelas = new GameObject();
+        _anim = GetComponent<Animator>();
+
+        _anim.enabled = false;
     }
 
     private void OnMouseDown()
@@ -37,25 +44,38 @@ public class ObjectInteraction : MonoBehaviour
     {
         if (_flagColliderHit && !ObjectManager.IsPouring)
         {
+            _anim.enabled = true;
             ObjectManager.SetPourAction(true);
             Vector3 pivotNuang = _gObjGelas.transform.GetChild(0).GetComponent<Transform>().position;
-            StartCoroutine(PlaysPourAnimation());
-            
+            _coroutine = StartCoroutine(PlaysPourAnimation());
+
             _flagColliderHit = false;
-            _gObjGelas = new GameObject();
+            //_gObjGelas = new GameObject();
         }
         else
         {
             transform.position = pivotRest.position;
+            transform.rotation = pivotRest.rotation;
         }
     }
 
     private IEnumerator PlaysPourAnimation()
     {
-        yield return new WaitForSeconds(3);
+        _anim.SetTrigger("Nuang");
+
+        //var m_CurrentClipInfo = this._anim.GetCurrentAnimatorClipInfo(0);
+        ////Access the current length of the clip
+        //var m_CurrentClipLength = m_CurrentClipInfo[0].clip.length;
+
+        yield return new WaitForSeconds(4.7f);
+
+        _anim.enabled = false;
 
         ObjectManager.SetPourAction(false);
         transform.position = pivotRest.position;
+        transform.rotation = pivotRest.rotation;
+
+        _coroutine = null;
     }
 
     private Vector3 GetMouseWorldPos()
@@ -91,7 +111,7 @@ public class ObjectInteraction : MonoBehaviour
                         _gObjGelas = currGObj;
                     }
 
-                    
+
 
                     //ObjectManager.ColliderHit(hit.collider.gameObject);
                     break; // ambil yang paling deket duluan
