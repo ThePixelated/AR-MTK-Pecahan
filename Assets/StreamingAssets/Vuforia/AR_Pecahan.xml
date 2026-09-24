@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QCARConfig>
+  <Tracking>
+    <ImageTarget name="aktivitas10" size="0.100000 0.100000" />
+    <ImageTarget name="aktivitas9" size="0.100000 0.100000" />
+    <ImageTarget name="aktivitas8" size="0.100000 0.100000" />
+    <ImageTarget name="aktivitas7" size="0.100000 0.100000" />
+    <ImageTarget name="aktivitas6" size="0.100000 0.100000" />
+    <ImageTarget name="aktivitas5" size="0.100000 0.100000" />
+    <ImageTarget name="aktivitas4" size="0.100000 0.100000" />
+    <ImageTarget name="aktivitas3" size="0.100000 0.100000" />
+    <ImageTarget name="aktivitas2" size="0.100000 0.100000" />
+    <ImageTarget name="aktivitas1" size="0.100000 0.100000" />
+  </Tracking>
+</QCARConfig>
