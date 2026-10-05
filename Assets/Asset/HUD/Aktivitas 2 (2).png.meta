@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: dedd10ef0ada8af4ba0293aa3895fd1a
+guid: 41908a4ed3b6551428c00b5718fc1335
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -123,23 +123,45 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Aktivitas 2 Eksplorasi - DW_0
+      name: Aktivitas 2 (2)_0
       rect:
         serializedVersion: 2
-        x: 0
+        x: 2730
         y: 0
-        width: 1920
-        height: 1080
+        width: 3270
+        height: 3375
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: b896800f7d753ee41b6f1cdb3b04d2de
-      internalID: 1598321670
+      spriteID: d4436dbda3dd23f48899b8b2bb17ee0b
+      internalID: -1460568824
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Aktivitas 2 (2)_1
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 2442
+        height: 3375
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 332bbee3c183dd541ac64a81e3356f99
+      internalID: 1363322088
       vertices: []
       indices: 
       edges: []
@@ -148,7 +170,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: af60cea64e8934d43be929ce50f01496
+    spriteID: 5b47bf5379d23734d93fdb2bad4b0ae3
     internalID: 0
     vertices: []
     indices: 
@@ -156,11 +178,10 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
-      entries:
-      - key: SpriteEditor.SliceSettings
-        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":64.0,"y":64.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
+      entries: []
     nameFileIdTable:
-      Aktivitas 2 Eksplorasi - DW_0: 1598321670
+      Aktivitas 2 (2)_0: -1460568824
+      Aktivitas 2 (2)_1: 1363322088
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
