@@ -12,11 +12,18 @@ public class KotakContents
 
     public void Add(Fraction piece) { pieces.Add(piece); Changed?.Invoke(); }
 
-    public bool CanMerge(int index, Fraction incoming) => pieces[index].denominator == incoming.denominator;
+    // Satu row maksimal satu utuh (d/d). Penyebut sama tapi row sudah penuh = bukan merge, jadi row baru.
+    public bool CanMerge(int index, Fraction incoming)
+    {
+        if (index < 0 || index >= pieces.Count) return false;
+        Fraction p = pieces[index];
+        return p.denominator == incoming.denominator
+            && p.numerator + incoming.numerator <= p.denominator;
+    }
 
     public void MergeAt(int index, Fraction incoming)
     {
-        if (!CanMerge(index, incoming)) throw new InvalidOperationException("Penyebut beda, gak bisa merge");
+        if (!CanMerge(index, incoming)) throw new InvalidOperationException("Tidak bisa merge: penyebut beda atau row sudah penuh");
         Fraction p = pieces[index];
         pieces[index] = new Fraction(p.numerator + incoming.numerator, p.denominator);   // sengaja TIDAK di-reduce
         Changed?.Invoke();

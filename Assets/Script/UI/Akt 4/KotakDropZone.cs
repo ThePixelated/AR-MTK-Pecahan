@@ -8,7 +8,7 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
     [SerializeField] Activity4Controller controller;
     [SerializeField] RectTransform zoneRect;      // KotakAPanel / KotakBPanel
     [SerializeField] ScrollRect scroll;
-    [SerializeField] RectTransform content;       // HANYA boleh berisi row: semua anaknya dihapus tiap rebuild
+    [SerializeField] RectTransform content;       // HANYA berisi row; sisa anak lama dibuang sekali saat Bind pertama
     [SerializeField] FractionBarRow rowPrefab;
     [SerializeField, Range(0.05f, 0.4f)] float edgeFraction = 0.15f;
     [SerializeField] float scrollSpeed = 900f;
@@ -18,6 +18,7 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
     FractionSession session;
     KotakContents contents;
     bool bound;
+    bool purged;
     readonly List<FractionBarRow> rows = new List<FractionBarRow>();
     int hoverRow = -1;
     int lastCount;
@@ -30,41 +31,54 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
         if (bound) return;
         if (controller == null) { Debug.LogError($"[{name}] KotakDropZone: controller belum diisi", this); return; }
 
-        session = controller.Session;                  // dibuat lazy di controller, aman dari urutan Awake/Start
+        session = controller.Session;
         contents = isKotakA ? session.A : session.B;
-        contents.Changed += Rebuild;
+        contents.Changed += Refresh;
         bound = true;
 
-        lastCount = contents.Count;                    // sinkron ulang tanpa lompatan scroll
-        Rebuild();
+        if (!purged) { PurgeContent(); purged = true; }   // buang row dummy dari scene, sekali saja
+        lastCount = contents.Count;                       // sinkron ulang tanpa lompatan scroll
+        Refresh();
     }
 
     void Unbind()
     {
         if (!bound) return;
-        contents.Changed -= Rebuild;
+        contents.Changed -= Refresh;
         bound = false;
     }
 
-    // ---------- tampilan: selalu dibangun ulang dari data ----------
-    void Rebuild()
+    void PurgeContent()
     {
-        RowSelection.Clear();
-        hoverRow = -1;
-
-        for (int i = content.childCount - 1; i >= 0; i--)   // hapus SEMUA anak: row lama, sisa dummy, sisa rebuild yang gagal
+        for (int i = content.childCount - 1; i >= 0; i--)
         {
             GameObject c = content.GetChild(i).gameObject;
             c.SetActive(false);
             Destroy(c);
         }
         rows.Clear();
+    }
+
+    // ---------- tampilan: reconcile data -> row (row dipakai ulang) ----------
+    void Refresh()
+    {
+        RowSelection.Clear();
+        hoverRow = -1;
+
+        while (rows.Count > contents.Count)                // row berlebih (setelah hapus atau reset)
+        {
+            FractionBarRow extra = rows[rows.Count - 1];
+            rows.RemoveAt(rows.Count - 1);
+            if (extra) { extra.gameObject.SetActive(false); Destroy(extra.gameObject); }
+        }
 
         for (int i = 0; i < contents.Count; i++)
         {
-            FractionBarRow row = Instantiate(rowPrefab, content);
-            rows.Add(row);                                   // masuk list DULU, baru Setup
-            row.Setup(contents.Pieces[i], i, controller.Palette, OnRowDeleteRequested);
+            if (i >= rows.Count) rows.Add(null);
+            if (!rows[i]) rows[i] = Instantiate(rowPrefab, content);   // masuk list SEBELUM Setup
+
+            if (rows[i].transform.GetSiblingIndex() != i) rows[i].transform.SetSiblingIndex(i);
+            rows[i].Setup(contents.Pieces[i], i, controller.Palette, OnRowDeleteRequested);
         }
 
         bool appended = contents.Count > lastCount;
@@ -72,7 +86,7 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
         if (appended)
         {
             LayoutRebuilder.ForceRebuildLayoutImmediate(content);
-            scroll.verticalNormalizedPosition = 0f;          // tampilkan row terbaru (paling bawah)
+            scroll.verticalNormalizedPosition = 0f;        // tampilkan row terbaru (paling bawah)
         }
     }
 
@@ -93,7 +107,7 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
     public void Hover(in DragPayload payload, Vector2 p, Camera cam, float dt)
     {
         int idx = RowAt(p, cam);
-        int target = (idx >= 0 && contents.CanMerge(idx, payload.piece)) ? idx : -1;   // highlight hanya kalau BENAR-BENAR bisa merge
+        int target = (idx >= 0 && contents.CanMerge(idx, payload.piece)) ? idx : -1;   // row penuh atau penyebut beda: tanpa highlight
 
         if (target != hoverRow)
         {

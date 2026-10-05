@@ -43,7 +43,8 @@ public class FractionSelfTest : MonoBehaviour
         km.MergeAt(0, Fraction.Unit(4));
         Check(km.Pieces[0].numerator == 4 && km.Pieces[0].denominator == 4, "hasil merge 4/4, tidak di-reduce");
         Check(!km.CanMerge(0, Fraction.Unit(7)), "4/4 tidak bisa merge 1/7");
-
+        Check(!km.CanMerge(0, Fraction.Unit(4)), "4/4 sudah penuh, tidak bisa merge lagi");
+        Check(!km.CanMerge(5, Fraction.Unit(4)), "index di luar jangkauan -> false");
         // Stress overflow: LCM(1..25) > int.MaxValue
         Fraction h = Fraction.Zero;
         for (int den = 2; den <= 25; den++) h += Fraction.Unit(den);

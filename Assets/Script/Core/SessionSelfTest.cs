@@ -131,6 +131,19 @@ public class SessionSelfTest : MonoBehaviour
         s11.TryDropToKotak(true, U(2)); s11.TryDropToKotak(false, U(4)); s11.CommitProblem();
         Check(s11.PreviewDropToDpz(U(4)) == RejectReason.None && s11.Dpz.IsEmpty, "Preview dpz: diterima, dpz tetap kosong");
 
+        // 12. Row penuh: potongan berikutnya jadi row baru
+        var s12 = new FractionSession(Operation.Add);
+        BuildRow(s12, true, 4, 4);
+        Check(s12.A.Count == 1 && s12.A.Pieces[0].numerator == 4, "A: satu row 4/4");
+        Check(s12.TryDropToKotak(true, U(4), 0) == RejectReason.None, "drop 1/4 di atas row penuh diterima");
+        Check(s12.A.Count == 2 && s12.A.Pieces[0].numerator == 4 && s12.A.Pieces[1].numerator == 1, "jadi row baru [4/4, 1/4]");
+        Check(!s12.A.CanMerge(0, U(4)) && s12.A.CanMerge(1, U(4)), "row 4/4 penuh, row 1/4 masih bisa merge");
+
+        // 13. Utuh selalu satu row sendiri
+        var s13 = new FractionSession(Operation.Add);
+        s13.TryDropToKotak(true, One); s13.TryDropToKotak(true, One, 0);
+        Check(s13.A.Count == 2, "dua utuh jadi dua row");
+
         Debug.Log(failed == 0 ? "SEMUA LOLOS (session)" : failed + " tes GAGAL (session)");
     }
 }

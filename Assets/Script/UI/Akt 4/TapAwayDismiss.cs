@@ -1,9 +1,11 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 public class TapAwayDismiss : MonoBehaviour
 {
-    [SerializeField] Camera uiCamera;   // kosongkan untuk Canvas Overlay
+    static readonly List<RaycastResult> hits = new List<RaycastResult>();
 
     void Update()
     {
@@ -11,9 +13,13 @@ public class TapAwayDismiss : MonoBehaviour
         if (p == null || !p.press.wasPressedThisFrame) return;
 
         FractionBarRow row = RowSelection.Current;
-        if (!row) return;
+        if (!row || EventSystem.current == null) return;
 
-        // Tap di dalam row terpilih (termasuk tombol hapusnya) diurus row sendiri
-        if (!row.ContainsScreenPoint(p.position.ReadValue(), uiCamera)) RowSelection.Clear();
+        var data = new PointerEventData(EventSystem.current) { position = p.position.ReadValue() };
+        hits.Clear();
+        EventSystem.current.RaycastAll(data, hits);   // urut dari paling atas
+
+        bool overRow = hits.Count > 0 && hits[0].gameObject.transform.IsChildOf(row.transform);
+        if (!overRow) RowSelection.Clear();
     }
 }

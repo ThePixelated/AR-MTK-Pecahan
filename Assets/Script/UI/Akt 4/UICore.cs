@@ -60,7 +60,7 @@ public static class RowSelection
 
     public static void Select(FractionBarRow row)
     {
-        if (Current == row) { Clear(); return; }   // tap lagi di row yang sama = tutup
+        if (Current == row) return;   // spek: tombol hapus hanya ditutup oleh tap di luar row atau oleh aksi hapus
         Clear();
         Current = row;
         row.ShowDelete(true);
