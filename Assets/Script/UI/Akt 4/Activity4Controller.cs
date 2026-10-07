@@ -1,22 +1,23 @@
 using System;
+using TMPro;
 using UnityEngine;
 
 public class Activity4Controller : MonoBehaviour
 {
     [SerializeField] Operation operation = Operation.Add;    // Media 6: Subtract
     [SerializeField] FractionPalette palette;
-    [SerializeField] Transform bankContent;                  // PecahanPanel/.../Scroll View/Viewport/Content
+    [SerializeField] Transform bankContent;
     [SerializeField] FractionBankItem bankItemPrefab;
     [SerializeField] SimpleConfirmDialog confirmDialog;
+    [SerializeField] TMP_Text commitLabel;                   // teks tombol +/- (AdditionBtn/Text (TMP))
 
     FractionSession session;
-    public FractionSession Session => session ??= new FractionSession(operation);
-
+    public FractionSession Session => session ??= new FractionSession(operation);   // lazy: tidak tergantung urutan Awake
     public FractionPalette Palette => palette;
 
     void Awake()
     {
-        //Session = new FractionSession(operation);
+        if (commitLabel) commitLabel.text = operation == Operation.Add ? "+" : "-";
         BuildBank();
     }
 
@@ -37,6 +38,32 @@ public class Activity4Controller : MonoBehaviour
     {
         if (needsConfirm && confirmDialog != null) confirmDialog.Ask(message, action);
         else action();
+    }
+
+    // onClick AdditionBtn
+    public void OnCommitPressed()
+    {
+        if (Session.CurrentPhase != Phase.Menyusun)
+        {
+            Feedback.Show(Messages.SoalSudahDibentuk, FeedbackKind.Info);
+            return;
+        }
+
+        ProblemError err = Session.CommitProblem();
+        if (err != ProblemError.None) Feedback.Show(Messages.For(err), FeedbackKind.Warning);
+    }
+
+    // onClick CekHasilBtn
+    public void OnCheckPressed()
+    {
+        CheckVerdict? v = Session.Check();
+        if (v == null)
+        {
+            Feedback.Show(Messages.For(RejectReason.SoalBelumDibentuk), FeedbackKind.Warning);
+            return;
+        }
+
+        Feedback.Show(Messages.For(v.Value), v == CheckVerdict.Benar ? FeedbackKind.Success : FeedbackKind.Warning);
     }
 
     [ContextMenu("Debug: Commit Problem")]

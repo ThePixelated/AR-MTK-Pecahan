@@ -11,6 +11,9 @@ public enum FeedbackKind { Info, Success, Warning, Error }
 // NotificationBar di scene belum punya TMP/icon, jadi sementara cuma Debug.Log. Step 4 menyambungkannya.
 public static class Feedback
 {
+    // di dalam class Feedback (supaya subscriber tidak nyangkut antar sesi Play)
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics() => Raised = null;
     public static event System.Action<string, FeedbackKind> Raised;
 
     public static void Show(string message, FeedbackKind kind = FeedbackKind.Info)
@@ -22,15 +25,9 @@ public static class Feedback
 
 public static class Messages
 {
-    public static string For(RejectReason r) => r switch
-    {
-        RejectReason.SoalBelumDibentuk => "Tekan tombol + atau − dulu ya.",
-        RejectReason.KotakTerlaluBesar => "Kotak ini sudah penuh, kurangi dulu.",
-        RejectReason.HasilTerlaluBesar => "Hasilnya terlalu besar, coba pecahan yang lebih kecil.",
-        RejectReason.SatuanBeda => "Pakai pecahan satuan yang sama ya.",
-        RejectReason.DpzPenuh => "Area susun sudah penuh.",
-        _ => ""
-    };
+
+    // di dalam class Messages
+    public const string SoalSudahDibentuk = "Soal sudah dibentuk. Ubah kotak kalau mau soal baru.";
 
     public static string For(ProblemError e) => e switch
     {
@@ -41,11 +38,21 @@ public static class Messages
         _ => ""
     };
 
+    public static string For(RejectReason r) => r switch
+    {
+        RejectReason.SoalBelumDibentuk => "Tekan tombol + atau − dulu ya.",
+        RejectReason.KotakTerlaluBesar => "Kotak ini sudah penuh, kurangi dulu.",
+        RejectReason.HasilTerlaluBesar => "Hasilnya terlalu besar, coba pecahan yang lebih kecil.",
+        RejectReason.DpzPenuh => "Area susun sudah penuh.",
+        _ => ""
+    };
+
     public static string For(CheckVerdict v) => v switch
     {
         CheckVerdict.Benar => "Jawaban benar!",
         CheckVerdict.Kurang => "Masih kurang, coba tambah balok.",
         CheckVerdict.Kelebihan => "Kelebihan, coba kurangi balok.",
+        CheckVerdict.NilaiPasSatuanBeda => "Nilainya sudah pas! Samakan dulu satuan pecahannya ya.",
         _ => ""
     };
 }

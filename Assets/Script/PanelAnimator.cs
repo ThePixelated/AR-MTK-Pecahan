@@ -6,14 +6,29 @@ public class PanelAnimator : MonoBehaviour
 {
     [SerializeField] private List<PanelAnimEntry> entries = new List<PanelAnimEntry>();
 
-    private readonly Dictionary<int, Coroutine> activeRuns = new Dictionary<int, Coroutine>();
+    // Kunci = RectTransform yang digerakkan entri awal chain. OPEN dan CLOSE pada target yang sama
+    // tidak pernah berjalan bersamaan: yang baru menggantikan yang lama, lanjut dari posisi saat ini.
+    private readonly Dictionary<RectTransform, Coroutine> activeRuns = new Dictionary<RectTransform, Coroutine>();
 
     public void Trigger(int startIndex)
     {
-        if (activeRuns.TryGetValue(startIndex, out var running) && running != null)
+        if (startIndex < 0 || startIndex >= entries.Count)
+        {
+            Debug.LogError($"[{name}] PanelAnimator.Trigger: indeks {startIndex} di luar jangkauan ({entries.Count} entri)", this);
+            return;
+        }
+
+        RectTransform key = entries[startIndex].Target;
+        if (key == null)
+        {
+            Debug.LogError($"[{name}] PanelAnimator.Trigger: Target entri {startIndex} kosong", this);
+            return;
+        }
+
+        if (activeRuns.TryGetValue(key, out var running) && running != null)
             StopCoroutine(running);
 
-        activeRuns[startIndex] = StartCoroutine(RunChain(startIndex));
+        activeRuns[key] = StartCoroutine(RunChain(startIndex));
     }
 
     private IEnumerator RunChain(int index)

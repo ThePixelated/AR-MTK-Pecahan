@@ -31,17 +31,21 @@ public class FractionSession
     KotakContents Side(bool isA) => isA ? A : B;
 
     // ---- Kotak A/B ----
-    // rowIndex >= 0: drop persis di atas row itu. Satuan sama -> merge, beda -> row baru.
-    //public RejectReason TryDropToKotak(bool intoA, Fraction piece, int rowIndex = -1)
-    //{
-    //    RejectReason why = GameRules.CheckKotakDrop(Op, A.Total(), B.Total(), intoA, piece);
-    //    if (why != RejectReason.None) return why;
+    // Cek aturan tanpa mengubah apa pun
+    public RejectReason PreviewDropToKotak(bool intoA, Fraction piece) =>
+        GameRules.CheckKotakDrop(Op, A.Total(), B.Total(), intoA, piece);
 
-    //    KotakContents k = Side(intoA);
-    //    if (rowIndex >= 0 && rowIndex < k.Count && k.CanMerge(rowIndex, piece)) k.MergeAt(rowIndex, piece);
-    //    else k.Add(piece);
-    //    return RejectReason.None;
-    //}
+    // rowIndex >= 0: drop persis di atas row itu. Satuan sama dan belum penuh -> merge, selain itu row baru.
+    public RejectReason TryDropToKotak(bool intoA, Fraction piece, int rowIndex = -1)
+    {
+        RejectReason why = PreviewDropToKotak(intoA, piece);
+        if (why != RejectReason.None) return why;
+
+        KotakContents k = Side(intoA);
+        if (rowIndex >= 0 && rowIndex < k.Count && k.CanMerge(rowIndex, piece)) k.MergeAt(rowIndex, piece);
+        else k.Add(piece);
+        return RejectReason.None;
+    }
 
     public void RemoveFromKotak(bool fromA, int index) => Side(fromA).RemoveAt(index);
     public void ClearKotak(bool isA) => Side(isA).Clear();
@@ -62,16 +66,38 @@ public class FractionSession
     }
 
     // ---- dpz ----
-    //public RejectReason TryDropToDpz(Fraction piece)
-    //{
-    //    if (CurrentPhase == Phase.Menyusun) return RejectReason.SoalBelumDibentuk;
+    // Blok yang akan menerima potongan ini, atau -1 kalau jadi blok baru.
+    // blockIndex >= 0 (persis di atas blok): hanya blok itu; penuh atau beda satuan = blok baru.
+    // blockIndex < 0 (zona luar): blok sejenis pertama yang belum penuh.
+    public int FindDpzMergeTarget(Fraction piece, int blockIndex = -1)
+    {
+        if (blockIndex >= 0) return Dpz.CanMerge(blockIndex, piece) ? blockIndex : -1;
 
-    //    RejectReason why = GameRules.CheckDpzDrop(Dpz, piece);
-    //    if (why == RejectReason.None) Dpz.Add(piece);
-    //    return why;
-    //}
+        for (int i = 0; i < Dpz.Count; i++)
+            if (Dpz.CanMerge(i, piece)) return i;
+        return -1;
+    }
 
-    public void RemoveFromDpz(int index) => Dpz.RemoveAt(index);
+    public RejectReason PreviewDropToDpz(Fraction piece, int blockIndex = -1)
+    {
+        if (CurrentPhase == Phase.Menyusun) return RejectReason.SoalBelumDibentuk;
+        bool createsNewBlock = FindDpzMergeTarget(piece, blockIndex) < 0;
+        return GameRules.CheckDpzDrop(Dpz, piece, createsNewBlock);
+    }
+
+    public RejectReason TryDropToDpz(Fraction piece, int blockIndex = -1)
+    {
+        RejectReason why = PreviewDropToDpz(piece, blockIndex);
+        if (why != RejectReason.None) return why;
+
+        int target = FindDpzMergeTarget(piece, blockIndex);
+        if (target >= 0) Dpz.MergeAt(target, piece);
+        else Dpz.Add(piece);
+        return RejectReason.None;
+    }
+
+    public void RemoveFromDpz(int index) => Dpz.RemoveAt(index);          // hapus blok utuh
+    public void RemoveUnitFromDpz(int index) => Dpz.DecrementAt(index);   // -1 satuan
     public void ClearDpz() => Dpz.Clear();
 
     // ---- Cek Hasil ----
@@ -85,7 +111,7 @@ public class FractionSession
 
     public void ResetAll() { A.Clear(); B.Clear(); Dpz.Clear(); }
 
-    
+    // ---- reaksi otomatis ----
     void OnKotakChanged()
     {
         if (CurrentPhase == Phase.Menyusun) return;
@@ -96,11 +122,9 @@ public class FractionSession
 
         Current = default;
         LastVerdict = null;
-        SetPhase(Phase.Menyusun);   // satu notif ni, const dipake semua
+        SetPhase(Phase.Menyusun);   // satu notifikasi, state sudah konsisten
     }
 
-    // cek dpz
-    // masih error di detection, prefab destroyed, value change
     void OnDpzChanged()
     {
         if (clearingDpz) return;
@@ -108,29 +132,4 @@ public class FractionSession
     }
 
     void SetPhase(Phase p) { CurrentPhase = p; StateChanged?.Invoke(); }
-
-    // Cek aturan tanpa mengubah apa pun
-    public RejectReason PreviewDropToKotak(bool intoA, Fraction piece) =>
-        GameRules.CheckKotakDrop(Op, A.Total(), B.Total(), intoA, piece);
-
-    public RejectReason PreviewDropToDpz(Fraction piece) =>
-        CurrentPhase == Phase.Menyusun ? RejectReason.SoalBelumDibentuk : GameRules.CheckDpzDrop(Dpz, piece);
-
-    public RejectReason TryDropToKotak(bool intoA, Fraction piece, int rowIndex = -1)
-    {
-        RejectReason why = PreviewDropToKotak(intoA, piece);
-        if (why != RejectReason.None) return why;
-
-        KotakContents k = Side(intoA);
-        if (rowIndex >= 0 && rowIndex < k.Count && k.CanMerge(rowIndex, piece)) k.MergeAt(rowIndex, piece);
-        else k.Add(piece);
-        return RejectReason.None;
-    }
-
-    public RejectReason TryDropToDpz(Fraction piece)
-    {
-        RejectReason why = PreviewDropToDpz(piece);
-        if (why == RejectReason.None) Dpz.Add(piece);
-        return why;
-    }
 }

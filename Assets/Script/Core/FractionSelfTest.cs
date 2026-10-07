@@ -45,6 +45,15 @@ public class FractionSelfTest : MonoBehaviour
         Check(!km.CanMerge(0, Fraction.Unit(7)), "4/4 tidak bisa merge 1/7");
         Check(!km.CanMerge(0, Fraction.Unit(4)), "4/4 sudah penuh, tidak bisa merge lagi");
         Check(!km.CanMerge(5, Fraction.Unit(4)), "index di luar jangkauan -> false");
+
+        // DecrementAt: -1 satuan, habis = blok hilang
+        var kd2 = new KotakContents();
+        kd2.Add(new Fraction(3, 4)); kd2.Add(Fraction.Unit(5));
+        kd2.DecrementAt(0);
+        Check(kd2.Count == 2 && kd2.Pieces[0].numerator == 2 && kd2.Pieces[0].denominator == 4, "3/4 -1 satuan = 2/4 (tidak di-reduce)");
+        kd2.DecrementAt(1);
+        Check(kd2.Count == 1 && kd2.Pieces[0].denominator == 4, "1/5 -1 satuan = blok hilang");
+
         // Stress overflow: LCM(1..25) > int.MaxValue
         Fraction h = Fraction.Zero;
         for (int den = 2; den <= 25; den++) h += Fraction.Unit(den);

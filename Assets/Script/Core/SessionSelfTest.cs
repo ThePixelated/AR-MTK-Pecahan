@@ -53,14 +53,13 @@ public class SessionSelfTest : MonoBehaviour
         s.TryDropToDpz(U(4));
         Check(s.Check() == CheckVerdict.Kurang, "1/4 vs 9/4 -> Kurang");
 
-        // 2. Kunci penyebut di dpz
+        // 2. dpz: satuan bebas saat menyusun (tidak ada kunci satuan)
         var s2 = new FractionSession(Operation.Add);
         s2.TryDropToKotak(true, U(2)); s2.TryDropToKotak(false, U(4)); s2.CommitProblem();
-        Check(s2.TryDropToDpz(U(4)) == RejectReason.None, "dpz: 1/4 diterima (kunci penyebut 4)");
-        Check(s2.TryDropToDpz(U(7)) == RejectReason.SatuanBeda, "dpz: 1/7 ditolak, satuan beda");
-        Check(s2.TryDropToDpz(One) == RejectReason.None, "dpz: balok utuh tetap boleh");
-        s2.ClearDpz();
-        Check(s2.TryDropToDpz(U(7)) == RejectReason.None, "dpz kosong -> kunci lepas");
+        Check(s2.TryDropToDpz(U(4)) == RejectReason.None, "dpz: 1/4 diterima");
+        Check(s2.TryDropToDpz(U(7)) == RejectReason.None, "dpz: 1/7 juga diterima (tidak ada kunci satuan)");
+        Check(s2.TryDropToDpz(One) == RejectReason.None, "dpz: balok utuh diterima");
+        Check(s2.Dpz.Count == 3, "tiga blok terpisah (penyebut beda tidak merge)");
 
         // 3. Gate penyebut di tombol +
         var s3 = new FractionSession(Operation.Add);
@@ -143,6 +142,55 @@ public class SessionSelfTest : MonoBehaviour
         var s13 = new FractionSession(Operation.Add);
         s13.TryDropToKotak(true, One); s13.TryDropToKotak(true, One, 0);
         Check(s13.A.Count == 2, "dua utuh jadi dua row");
+
+        // 14. dpz: merge di zona luar, blok baru kalau penuh
+        var s14 = new FractionSession(Operation.Add);
+        s14.TryDropToKotak(true, One); s14.TryDropToKotak(false, U(4)); s14.CommitProblem();   // 1 + 1/4
+        s14.TryDropToDpz(U(4)); s14.TryDropToDpz(U(4));
+        Check(s14.Dpz.Count == 1 && s14.Dpz.Pieces[0].numerator == 2, "zona luar: 1/4 + 1/4 merge jadi 2/4");
+        s14.TryDropToDpz(U(4)); s14.TryDropToDpz(U(4));
+        Check(s14.Dpz.Count == 1 && s14.Dpz.Pieces[0].numerator == 4, "merge sampai 4/4");
+        s14.TryDropToDpz(U(4));
+        Check(s14.Dpz.Count == 2 && s14.Dpz.Pieces[1].numerator == 1, "4/4 penuh: 1/4 berikutnya jadi blok baru");
+
+        // 15. dpz: drop persis di atas blok
+        var s15 = new FractionSession(Operation.Add);
+        s15.TryDropToKotak(true, U(2)); s15.TryDropToKotak(false, U(4)); s15.CommitProblem();
+        s15.TryDropToDpz(U(4));        // blok 0: 1/4
+        s15.TryDropToDpz(U(3));        // blok 1: 1/3
+        s15.TryDropToDpz(U(3), 0);     // persis di atas 1/4 tapi penyebut beda -> blok baru
+        Check(s15.Dpz.Count == 3 && s15.Dpz.Pieces[2].denominator == 3, "di atas blok beda satuan: jadi blok baru");
+        s15.TryDropToDpz(U(4), 0);     // persis di atas 1/4 -> merge
+        Check(s15.Dpz.Count == 3 && s15.Dpz.Pieces[0].numerator == 2, "di atas blok sejenis: merge");
+        Check(s15.FindDpzMergeTarget(U(3)) == 1, "zona luar: blok 1/3 pertama yang belum penuh menerima 1/3");
+
+        // 16. Nilai pas tapi satuan campur
+        var s16 = new FractionSession(Operation.Add);
+        s16.TryDropToKotak(true, U(2)); s16.TryDropToKotak(false, U(4)); s16.CommitProblem();   // 3/4
+        s16.TryDropToDpz(U(2)); s16.TryDropToDpz(U(4));
+        Check(s16.Check() == CheckVerdict.NilaiPasSatuanBeda, "1/2 + 1/4 = 3/4 tapi satuan campur");
+        Check(s16.CurrentPhase == Phase.Dicek && s16.LastVerdict != CheckVerdict.Benar, "belum Benar, hasil di Soal tetap ?");
+        s16.ClearDpz();
+        for (int i = 0; i < 3; i++) s16.TryDropToDpz(U(4));
+        Check(s16.Dpz.Count == 1 && s16.Check() == CheckVerdict.Benar, "3 x 1/4 (satu blok 3/4) -> Benar");
+
+        // 17. Batas jumlah blok: blok baru ditolak, merge tetap boleh
+        var s17 = new FractionSession(Operation.Add);
+        s17.TryDropToKotak(true, U(2)); s17.TryDropToKotak(false, U(3)); s17.CommitProblem();
+        bool penuh = true;
+        for (int den = 2; den < 2 + GameRules.MaxDpzBlocks; den++) penuh &= s17.TryDropToDpz(U(den)) == RejectReason.None;
+        Check(penuh && s17.Dpz.Count == GameRules.MaxDpzBlocks, "blok sebanyak batas diterima");
+        Check(s17.TryDropToDpz(U(2 + GameRules.MaxDpzBlocks)) == RejectReason.DpzPenuh, "blok melebihi batas ditolak");
+        Check(s17.TryDropToDpz(U(2)) == RejectReason.None && s17.Dpz.Count == GameRules.MaxDpzBlocks, "merge ke blok yang ada tetap boleh");
+
+        // 18. -1 satuan dan hapus blok
+        var s18 = new FractionSession(Operation.Add);
+        s18.TryDropToKotak(true, U(2)); s18.TryDropToKotak(false, U(4)); s18.CommitProblem();
+        s18.TryDropToDpz(U(4)); s18.TryDropToDpz(U(4)); s18.TryDropToDpz(U(4));   // satu blok 3/4
+        s18.RemoveUnitFromDpz(0);
+        Check(s18.Dpz.Count == 1 && s18.Dpz.Pieces[0].numerator == 2, "3/4 -1 satuan = 2/4");
+        s18.RemoveFromDpz(0);
+        Check(s18.Dpz.IsEmpty, "hapus blok utuh");
 
         Debug.Log(failed == 0 ? "SEMUA LOLOS (session)" : failed + " tes GAGAL (session)");
     }
