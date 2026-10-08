@@ -7,7 +7,10 @@ public class FractionBankItem : MonoBehaviour,
     IInitializePotentialDragHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     [SerializeField] TMP_Text label;
-    [SerializeField] Image background;                 // Image di root kartu
+    [SerializeField] Image background;                 // Image di root kartu (warna = warna penyebut)
+    [SerializeField] FractionBarView barView;          // bar proporsional + divider (opsional)
+    [SerializeField] bool tintBackground = true;       // kartu pucat, bar pakai warna penuh
+    [SerializeField, Range(0f, 1f)] float backgroundTint = 0.75f;   // 0 = warna penuh, 1 = putih
     [SerializeField, Min(1)] int denominator = 1;      // 1 = utuh. Jangan simpan Fraction di Inspector (default struct = 0/0)
 
     enum Mode { None, Scroll, Carry }
@@ -20,7 +23,13 @@ public class FractionBankItem : MonoBehaviour,
     {
         denominator = Mathf.Max(1, den);
         label.text = FractionFormat.Label(Piece);
-        background.color = owner.Palette.Get(denominator);
+
+        Color c = owner.Palette.Get(denominator);            // warna data: sama dengan row Kotak dan balok 3D
+        if (barView) barView.Show(Piece, c);
+
+        if (!background) return;
+        if (!barView) background.color = c;                  // tanpa bar: kartu sendiri yang berwarna
+        else if (tintBackground) background.color = Color.Lerp(c, Color.white, backgroundTint);
     }
 
     public void OnInitializePotentialDrag(PointerEventData e)

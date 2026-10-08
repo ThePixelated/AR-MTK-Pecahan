@@ -9,6 +9,8 @@ public class DebugDpzZone : MonoBehaviour, IFractionDropZone
     [SerializeField] RectTransform zoneRect;
     [SerializeField] TMP_Text listText;
 
+    [SerializeField] DpzView dpzView;   // opsional: untuk melihat highlight di 3D saat ghost melewati zona debug
+
     FractionSession session;
     bool bound;
     int hoverTarget = -1;   // blok yang akan menerima potongan (hanya untuk tampilan)
@@ -61,12 +63,18 @@ public class DebugDpzZone : MonoBehaviour, IFractionDropZone
     public void Hover(in DragPayload payload, Vector2 p, Camera cam, float dt)
     {
         if (!bound) return;
-        int target = session.FindDpzMergeTarget(payload.piece);   // zona luar: blok sejenis pertama yang belum penuh
-        if (target != hoverTarget) { hoverTarget = target; Refresh(); }
+        int target = session.FindDpzMergeTarget(payload.piece);
+        if (target != hoverTarget)
+        {
+            hoverTarget = target;
+            if (dpzView) dpzView.SetHighlightedBlock(target);
+            Refresh();
+        }
     }
 
     public void HoverExit()
     {
+        if (dpzView) dpzView.SetHighlightedBlock(-1);
         if (hoverTarget == -1) return;
         hoverTarget = -1;
         if (bound) Refresh();
@@ -76,6 +84,7 @@ public class DebugDpzZone : MonoBehaviour, IFractionDropZone
     {
         if (payload.origin != DragOrigin.Bank) return RejectReason.None;
         hoverTarget = -1;
-        return session.TryDropToDpz(payload.piece);   // alasan penolakan otomatis jadi notifikasi lewat FractionDragController
+        if (dpzView) dpzView.SetHighlightedBlock(-1);
+        return session.TryDropToDpz(payload.piece);
     }
 }
