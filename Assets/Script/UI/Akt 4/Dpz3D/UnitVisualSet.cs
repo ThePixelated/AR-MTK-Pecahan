@@ -14,4 +14,9 @@ public abstract class UnitVisualSet : ScriptableObject
     public abstract GameObject Create(Transform parent);
     public abstract void Configure(GameObject unit, in UnitCellSpec spec, Color color);
     public abstract void SetHighlight(GameObject unit, float amount);
+
+    // Versi semi-transparan (prediksi potongan dan ghost yang dipegang)
+    public abstract GameObject CreateGhost(Transform parent);
+    public abstract void ConfigureGhost(GameObject unit, in UnitCellSpec spec, Color color, float alpha);
+    public abstract void SetGhostAlpha(GameObject unit, float alpha);
 }

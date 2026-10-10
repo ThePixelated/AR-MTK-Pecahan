@@ -83,9 +83,10 @@ Material:
     m_Ints: []
     m_Floats:
     - _AddPrecomputedVelocity: 0
+    - _Alpha: 1
     - _AlphaClip: 0
     - _AlphaToMask: 0
-    - _Ambient: 0.55
+    - _Ambient: 0.307
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
     - _BumpScale: 1

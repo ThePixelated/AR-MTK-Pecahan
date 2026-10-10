@@ -12,25 +12,68 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dece52a801fd8fc48bbc7481db7408a9, type: 3}
   m_Name: Dpz Style
   m_EditorClassIdentifier: Assembly-CSharp::DpzStyle
-  wholeLength: 0.1
+  wholeLength: 0.3
   thickness: 0.015
   height: 0.012
-  cellGap: 0.0005
+  cellGap: 0.001
   inset: 0.0012
-  rowGap: 0.005
-  innerPadding: 0.005
-  outerMargin: 0.015
+  rowGap: 0.01
+  innerPadding: 0.01
+  outerMargin: 0.05
   baseLift: 0.001
-  minRows: 2
+  minRows: 3
+  minEmptyRows: 1
+  areaPredictsOnHover: 1
   lineStyle: 1
-  lineWidth: 0.0006
+  lineWidth: 0.001
   dashLength: 0.004
   dashGap: 0.003
   lineTexture: {fileID: 0}
-  textureTile: 0.01
+  textureTile: 0
   forceLineColor: 0
   forcedLineColor: {r: 1, g: 1, b: 1, a: 1}
-  emptyCellAlpha: 0.08
+  emptyCellAlpha: 0.299
+  previewFilledAlpha: 0.792
   animationSpeed: 0.01
   animateOnlyWhenHighlighted: 1
-  highlightBrighten: 0.496
+  highlightBrighten: 0.806
+  ghostScope: 2
+  ghostAlpha: 0.868
+  ghostForceColor: 0
+  ghostColor: {r: 1, g: 1, b: 1, a: 1}
+  ghostPulseSpeed: 0.7
+  ghostPulseAmount: 0.85
+  heldGhostAlpha: 0.708
+  heldGhostLift: 0.01
+  outerArea:
+    borderColor: {r: 0.18867922, g: 0.18867922, b: 0.18867922, a: 0.59607846}
+    borderThickness: 0.002
+    fillColor: {r: 0, g: 0, b: 0, a: 0.05}
+    hatch: 1
+    hatchColor: {r: 0, g: 0, b: 0, a: 0.3137255}
+    hatchAngle: 125
+    hatchSpacing: 0.006
+    hatchWidth: 0.0009
+    hatchDashed: 1
+    hatchDashLength: 0.01
+    hatchDashGap: 0.005
+    title: <b>Zona luar</b>
+    titleColor: {r: 0.1764706, g: 0.1764706, b: 0.1764706, a: 1}
+    titleSizeMM: 12
+    titleOffset: {x: 0, y: 0.003}
+  innerArea:
+    borderColor: {r: 0.9056604, g: 0.58858, b: 0.08116765, a: 0.46666667}
+    borderThickness: 0.002
+    fillColor: {r: 0.764151, g: 0.5208482, b: 0.13336597, a: 0.33333334}
+    hatch: 1
+    hatchColor: {r: 0.90588236, g: 0.5882353, b: 0.082352914, a: 0.22}
+    hatchAngle: 125
+    hatchSpacing: 0.006
+    hatchWidth: 0.0009
+    hatchDashed: 0
+    hatchDashLength: 0.2
+    hatchDashGap: 0.08
+    title: <b>Area balok</b>
+    titleColor: {r: 0.90588236, g: 0.5882353, b: 0.08235294, a: 0.7882353}
+    titleSizeMM: 11
+    titleOffset: {x: 0, y: 0.003}

@@ -1,6 +1,34 @@
 using UnityEngine;
 
 public enum LineStyle { Solid = 0, Dashed = 1, Texture = 2 }
+public enum GhostScope { Off = 0, InnerAreaOnly = 1, AllAreas = 2 }
+
+[System.Serializable]
+public class DpzAreaStyle
+{
+    [Header("Garis tepi")]
+    public Color borderColor = new Color(1f, 1f, 1f, 0.9f);
+    public float borderThickness = 0.001f;            // meter
+
+    [Header("Isian (alpha = opacity)")]
+    public Color fillColor = new Color(1f, 1f, 1f, 0.06f);
+
+    [Header("Arsir (garis miring)")]
+    public bool hatch = true;
+    public Color hatchColor = new Color(1f, 1f, 1f, 0.25f);
+    [Range(0f, 180f)] public float hatchAngle = 45f;
+    public float hatchSpacing = 0.006f;               // jarak antar garis (meter)
+    public float hatchWidth = 0.0006f;                // tebal garis (meter)
+    public bool hatchDashed = false;
+    public float hatchDashLength = 0.004f;
+    public float hatchDashGap = 0.003f;
+
+    [Header("Judul (di luar area, relatif dari pojok anchor)")]
+    public string title = "";
+    public Color titleColor = Color.white;
+    public float titleSizeMM = 6f;                    // tinggi huruf dalam milimeter
+    public Vector2 titleOffset = new Vector2(0f, 0.003f);   // meter: x ke kanan, y menjauhi area
+}
 
 [CreateAssetMenu(menuName = "AR Pecahan/Dpz Style")]
 public class DpzStyle : ScriptableObject
@@ -14,8 +42,12 @@ public class DpzStyle : ScriptableObject
     public float rowGap = 0.005f;
     public float innerPadding = 0.005f;
     public float outerMargin = 0.015f;
-    public float baseLift = 0.001f;   // tinggi dasar balok dan garis lantai dari bidang dpz (di atas area visual lu)
-    [Min(1)] public int minRows = 1;      // area tidak pernah lebih kecil dari ini
+    public float baseLift = 0.001f;   // tinggi dasar balok dan garis lantai dari bidang dpz (di atas area visual)
+
+    [Header("Baris area")]
+    [Min(1)] public int minRows = 1;           // lantai ukuran area (baris)
+    [Min(0)] public int minEmptyRows = 1;      // selalu sisakan sekian baris kosong setelah blok terakhir (dibatasi MaxDpzBlocks)
+    public bool areaPredictsOnHover = false;   // true: area mengembang/menyusut sesuai prediksi blok baru saat hover
 
     [Header("Garis lantai")]
     public LineStyle lineStyle = LineStyle.Solid;
@@ -27,9 +59,41 @@ public class DpzStyle : ScriptableObject
     public bool forceLineColor;                     // true = semua garis satu warna, abaikan warna balok
     public Color forcedLineColor = Color.white;
     [Range(0f, 1f)] public float emptyCellAlpha = 0.08f;
+    [Range(0f, 1f)] public float previewFilledAlpha = 0.3f;   // isian datar sel pada preview; set 0 kalau sudah pakai ghost satuan
 
     [Header("Animasi dan highlight")]
     public float animationSpeed = 0f;                // meter/detik, 0 = statis
     public bool animateOnlyWhenHighlighted = true;
-    [Range(0f, 1f)] public float highlightBrighten = 0.5f;   // seberapa terang garis saat highlight
+    [Range(0f, 1f)] public float highlightBrighten = 0.5f;
+
+    [Header("Ghost satuan: prediksi potongan (semi-transparan)")]
+    public GhostScope ghostScope = GhostScope.InnerAreaOnly;   // Off = mati; InnerAreaOnly; AllAreas (termasuk zona luar)
+    [Range(0f, 1f)] public float ghostAlpha = 0.45f;
+    public bool ghostForceColor;                    // true = ghost satu warna, abaikan warna penyebut
+    public Color ghostColor = Color.white;
+    public float ghostPulseSpeed = 0f;               // denyut transparansi (Hz), 0 = tanpa denyut
+    [Range(0f, 1f)] public float ghostPulseAmount = 0.5f;
+
+    [Header("Ghost yang dipegang (3D)")]
+    [Range(0f, 1f)] public float heldGhostAlpha = 0.85f;
+    public float heldGhostLift = 0.01f;              // meter di atas bidang dpz
+
+    [Header("Area (shader DpzArea): konfigurasi terpisah luar dan dalam")]
+    public DpzAreaStyle outerArea = new DpzAreaStyle
+    {
+        title = "Zona luar",
+        borderColor = new Color(0.45f, 0.8f, 1f, 0.9f),
+        borderThickness = 0.0008f,
+        fillColor = new Color(0.45f, 0.8f, 1f, 0.05f),
+        hatchColor = new Color(0.45f, 0.8f, 1f, 0.18f),
+        hatchDashed = true,
+    };
+    public DpzAreaStyle innerArea = new DpzAreaStyle
+    {
+        title = "Area balok",
+        borderColor = new Color(1f, 1f, 1f, 0.9f),
+        borderThickness = 0.001f,
+        fillColor = new Color(1f, 1f, 1f, 0.10f),
+        hatchColor = new Color(1f, 1f, 1f, 0.22f),
+    };
 }

@@ -16,6 +16,7 @@ public class DpzBlockView : MonoBehaviour
     static readonly int TexTileId = Shader.PropertyToID("_TexTile");
     static readonly int PhaseId = Shader.PropertyToID("_Phase");
     static readonly int EmptyAlphaId = Shader.PropertyToID("_EmptyAlpha");
+    static readonly int FilledAlphaId = Shader.PropertyToID("_FilledAlpha");
     static readonly int LineTexId = Shader.PropertyToID("_LineTex");
 
     public Fraction Piece { get; private set; }
@@ -23,10 +24,18 @@ public class DpzBlockView : MonoBehaviour
 
     DpzStyle style;
     UnitVisualSet visuals;
+    DpzView owner;
     Transform track;
     MeshRenderer trackRenderer;
     MaterialPropertyBlock mpb;
+    BoxCollider boxCollider;
+    DpzCollider colliderTag;
     readonly List<GameObject> units = new List<GameObject>();
+
+    GameObject ghostUnit;
+    bool ghostActive;
+    float ghostBaseAlpha;
+    float ghostPhase;
 
     Color blockColor = Color.white;
     float highlight;
@@ -34,12 +43,22 @@ public class DpzBlockView : MonoBehaviour
     float animSpeed;
     bool animating;
     bool hasPiece;
+    bool isPreview;
+    float previewFilledAlpha;
 
-    public void Init(DpzStyle style, UnitVisualSet visuals, Material decalMaterial)
+    public void Init(DpzStyle style, UnitVisualSet visuals, Material decalMaterial, DpzView owner, int layer)
     {
         this.style = style;
         this.visuals = visuals;
+        this.owner = owner;
         mpb = new MaterialPropertyBlock();
+
+        gameObject.layer = layer;
+        boxCollider = gameObject.AddComponent<BoxCollider>();
+        boxCollider.isTrigger = true;
+        colliderTag = gameObject.AddComponent<DpzCollider>();
+        colliderTag.owner = owner;
+        colliderTag.kind = DpzColliderKind.Block;
 
         var go = new GameObject("Track");
         track = go.transform;
@@ -54,9 +73,19 @@ public class DpzBlockView : MonoBehaviour
     // Paksa gambar ulang di Show berikutnya (setelah DpzStyle diubah)
     public void InvalidateVisual() => hasPiece = false;
 
+    void SizeCollider()
+    {
+        float h = owner.ColliderHeight;
+        boxCollider.center = new Vector3(style.wholeLength * 0.5f, h * 0.5f, -style.thickness * 0.5f);
+        boxCollider.size = new Vector3(style.wholeLength, h, style.thickness);
+    }
+
     public void Show(Fraction piece, int index, Color color, Vector3 localPosition)
     {
         Index = index;
+        isPreview = false;
+        colliderTag.blockIndex = index;
+        boxCollider.enabled = true;
         transform.localPosition = localPosition;
 
         bool same = hasPiece && piece.numerator == Piece.numerator
@@ -64,10 +93,12 @@ public class DpzBlockView : MonoBehaviour
         Piece = piece; blockColor = color; hasPiece = true;
         if (same) return;
 
+        SizeCollider();
+
         int n = (int)piece.numerator;        // jumlah satuan terisi
         int d = (int)piece.denominator;      // jumlah sel di track
         float pitch = style.wholeLength / d;
-        float cellLength = Mathf.Max(0.0001f, pitch - style.cellGap);   // panjang blok n/d = n * pitch - g, selalu sama untuk nilai yang sama
+        float cellLength = Mathf.Max(0.0001f, pitch - style.cellGap);   // panjang blok n/d = n * pitch - g
         var spec = new UnitCellSpec(cellLength, style.thickness, style.height, style.inset);
 
         while (units.Count < n) units.Add(visuals.Create(transform));
@@ -81,12 +112,53 @@ public class DpzBlockView : MonoBehaviour
 
             u.transform.localPosition = new Vector3(i * pitch + style.cellGap * 0.5f, style.baseLift, 0f);
             visuals.Configure(u, spec, color);
-            visuals.SetHighlight(u, highlight);          // pertahankan highlight yang sedang aktif
+            visuals.SetHighlight(u, highlight);
         }
 
         track.localPosition = new Vector3(0f, style.baseLift, 0f);
         track.localScale = new Vector3(style.wholeLength, 1f, style.thickness);
         ApplyTrack();
+    }
+
+    // Preview slot blok baru: hanya garis lantai (d sel), selalu highlight; tanpa collider supaya tidak tertangkap raycast
+    public void ShowPreview(Fraction piece, Color color, Vector3 localPosition, float filledAlpha)
+    {
+        transform.localPosition = localPosition;
+        boxCollider.enabled = false;
+        foreach (var u in units) if (u.activeSelf) u.SetActive(false);
+
+        Piece = piece; blockColor = color;
+        hasPiece = false;                      // kalau dipakai Show lagi, gambar ulang penuh
+        isPreview = true;
+        previewFilledAlpha = filledAlpha;
+        highlight = 1f;
+
+        track.localPosition = new Vector3(0f, style.baseLift, 0f);
+        track.localScale = new Vector3(style.wholeLength, 1f, style.thickness);
+        ApplyTrack();
+    }
+
+    // Ghost satuan semi-transparan di sel cellIndex (0-based) pada track berpenyebut denominator
+    public void ShowGhostUnit(int cellIndex, int denominator, Color color, float alpha)
+    {
+        if (!ghostUnit) ghostUnit = visuals.CreateGhost(transform);
+
+        float pitch = style.wholeLength / denominator;
+        var spec = new UnitCellSpec(Mathf.Max(0.0001f, pitch - style.cellGap), style.thickness, style.height, style.inset);
+
+        ghostUnit.SetActive(true);
+        ghostUnit.transform.localPosition = new Vector3(cellIndex * pitch + style.cellGap * 0.5f, style.baseLift, 0f);
+        visuals.ConfigureGhost(ghostUnit, spec, style.ghostForceColor ? style.ghostColor : color, alpha);
+
+        ghostActive = true;
+        ghostBaseAlpha = alpha;
+        ghostPhase = 0f;
+    }
+
+    public void HideGhostUnit()
+    {
+        ghostActive = false;
+        if (ghostUnit && ghostUnit.activeSelf) ghostUnit.SetActive(false);
     }
 
     public void SetHighlight(float amount)
@@ -96,7 +168,7 @@ public class DpzBlockView : MonoBehaviour
         highlight = amount;
 
         foreach (var u in units) if (u.activeSelf) visuals.SetHighlight(u, highlight);
-        if (hasPiece) ApplyTrack();
+        if (hasPiece || isPreview) ApplyTrack();
     }
 
     void ApplyTrack()
@@ -120,6 +192,7 @@ public class DpzBlockView : MonoBehaviour
         mpb.SetFloat(DashGapId, style.dashGap);
         mpb.SetFloat(TexTileId, Mathf.Max(0.0001f, style.textureTile));
         mpb.SetFloat(EmptyAlphaId, style.emptyCellAlpha);
+        mpb.SetFloat(FilledAlphaId, isPreview ? previewFilledAlpha : 0f);
         mpb.SetFloat(PhaseId, phase);
         mpb.SetTexture(LineTexId, style.lineTexture != null ? style.lineTexture : Texture2D.whiteTexture);
         trackRenderer.SetPropertyBlock(mpb);
@@ -127,10 +200,19 @@ public class DpzBlockView : MonoBehaviour
 
     void Update()
     {
-        if (!animating) return;
-        phase += animSpeed * Time.unscaledDeltaTime;
-        trackRenderer.GetPropertyBlock(mpb);
-        mpb.SetFloat(PhaseId, phase);
-        trackRenderer.SetPropertyBlock(mpb);
+        if (animating)
+        {
+            phase += animSpeed * Time.unscaledDeltaTime;
+            trackRenderer.GetPropertyBlock(mpb);
+            mpb.SetFloat(PhaseId, phase);
+            trackRenderer.SetPropertyBlock(mpb);
+        }
+
+        if (ghostActive && ghostUnit && style.ghostPulseSpeed > 0.001f)
+        {
+            ghostPhase += Time.unscaledDeltaTime * style.ghostPulseSpeed * Mathf.PI * 2f;
+            float k = 0.5f + 0.5f * Mathf.Sin(ghostPhase);
+            visuals.SetGhostAlpha(ghostUnit, ghostBaseAlpha * (1f - style.ghostPulseAmount * k));
+        }
     }
 }

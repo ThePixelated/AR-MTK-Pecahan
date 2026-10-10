@@ -63,18 +63,17 @@ public class DebugDpzZone : MonoBehaviour, IFractionDropZone
     public void Hover(in DragPayload payload, Vector2 p, Camera cam, float dt)
     {
         if (!bound) return;
-        int target = session.FindDpzMergeTarget(payload.piece);
-        if (target != hoverTarget)
-        {
-            hoverTarget = target;
-            if (dpzView) dpzView.SetHighlightedBlock(target);
-            Refresh();
-        }
+        Fraction piece = payload.piece;
+
+        int target = session.FindDpzMergeTarget(piece);
+        if (target != hoverTarget) { hoverTarget = target; Refresh(); }
+
+        if (dpzView) dpzView.SetHover(piece);   // blok sejenis: highlight blok; selain itu preview slot baru
     }
 
     public void HoverExit()
     {
-        if (dpzView) dpzView.SetHighlightedBlock(-1);
+        if (dpzView) dpzView.ClearHover();
         if (hoverTarget == -1) return;
         hoverTarget = -1;
         if (bound) Refresh();
@@ -84,7 +83,7 @@ public class DebugDpzZone : MonoBehaviour, IFractionDropZone
     {
         if (payload.origin != DragOrigin.Bank) return RejectReason.None;
         hoverTarget = -1;
-        if (dpzView) dpzView.SetHighlightedBlock(-1);
+        if (dpzView) dpzView.ClearHover();
         return session.TryDropToDpz(payload.piece);
     }
 }

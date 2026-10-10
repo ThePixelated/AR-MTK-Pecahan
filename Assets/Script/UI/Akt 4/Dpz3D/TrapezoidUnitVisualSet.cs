@@ -4,42 +4,81 @@ using UnityEngine.Rendering;
 [CreateAssetMenu(menuName = "AR Pecahan/Unit Visual/Trapezoid")]
 public class TrapezoidUnitVisualSet : UnitVisualSet
 {
-    [SerializeField] Material cellMaterial;     // material dengan shader ARPecahan/UnitCell
+    [SerializeField] Material cellMaterial;     // shader ARPecahan/UnitCell
+    [SerializeField] Material ghostMaterial;    // shader ARPecahan/UnitCellGhost
 
     static readonly int ColorId = Shader.PropertyToID("_Color");
     static readonly int HighlightId = Shader.PropertyToID("_Highlight");
+    static readonly int AlphaId = Shader.PropertyToID("_Alpha");
     static MaterialPropertyBlock mpb;
 
-    public override GameObject Create(Transform parent)
+    static GameObject Build(string name, Transform parent, Material material)
     {
-        if (cellMaterial == null) Debug.LogError($"[{name}] cellMaterial belum diisi", this);
-
-        var go = new GameObject("Unit");
+        var go = new GameObject(name);
         go.transform.SetParent(parent, false);
         go.AddComponent<MeshFilter>();
         var mr = go.AddComponent<MeshRenderer>();
-        mr.sharedMaterial = cellMaterial;
+        mr.sharedMaterial = material;
         mr.shadowCastingMode = ShadowCastingMode.Off;
         mr.receiveShadows = false;
         return go;
     }
 
-    public override void Configure(GameObject unit, in UnitCellSpec spec, Color color)
+    public override GameObject Create(Transform parent)
     {
-        unit.GetComponent<MeshFilter>().sharedMesh =
-            DpzMeshes.TrapezoidPrism(spec.length, spec.thickness, spec.height, spec.inset);
-        Write(unit, color, 0f, true);
+        if (cellMaterial == null) Debug.LogError($"[{name}] cellMaterial belum diisi", this);
+        return Build("Unit", parent, cellMaterial);
     }
 
-    public override void SetHighlight(GameObject unit, float amount) => Write(unit, default, amount, false);
+    public override GameObject CreateGhost(Transform parent)
+    {
+        if (ghostMaterial == null) Debug.LogError($"[{name}] ghostMaterial belum diisi", this);
+        var go = Build("UnitGhost", parent, ghostMaterial);
+        go.GetComponent<MeshRenderer>().sortingOrder = 5;   // digambar setelah garis lantai dan area
+        return go;
+    }
 
-    static void Write(GameObject unit, Color color, float highlight, bool setColor)
+    public override void Configure(GameObject unit, in UnitCellSpec spec, Color color)
+    {
+        SetMesh(unit, spec);
+        var mr = unit.GetComponent<MeshRenderer>();
+        mpb ??= new MaterialPropertyBlock();
+        mr.GetPropertyBlock(mpb);
+        mpb.SetColor(ColorId, color);
+        mpb.SetFloat(HighlightId, 0f);
+        mr.SetPropertyBlock(mpb);
+    }
+
+    public override void SetHighlight(GameObject unit, float amount)
     {
         var mr = unit.GetComponent<MeshRenderer>();
         mpb ??= new MaterialPropertyBlock();
         mr.GetPropertyBlock(mpb);
-        if (setColor) mpb.SetColor(ColorId, color);
-        mpb.SetFloat(HighlightId, highlight);
+        mpb.SetFloat(HighlightId, amount);
         mr.SetPropertyBlock(mpb);
     }
+
+    public override void ConfigureGhost(GameObject unit, in UnitCellSpec spec, Color color, float alpha)
+    {
+        SetMesh(unit, spec);
+        var mr = unit.GetComponent<MeshRenderer>();
+        mpb ??= new MaterialPropertyBlock();
+        mr.GetPropertyBlock(mpb);
+        mpb.SetColor(ColorId, color);
+        mpb.SetFloat(AlphaId, alpha);
+        mr.SetPropertyBlock(mpb);
+    }
+
+    public override void SetGhostAlpha(GameObject unit, float alpha)
+    {
+        var mr = unit.GetComponent<MeshRenderer>();
+        mpb ??= new MaterialPropertyBlock();
+        mr.GetPropertyBlock(mpb);
+        mpb.SetFloat(AlphaId, alpha);
+        mr.SetPropertyBlock(mpb);
+    }
+
+    static void SetMesh(GameObject unit, in UnitCellSpec spec) =>
+        unit.GetComponent<MeshFilter>().sharedMesh =
+            DpzMeshes.TrapezoidPrism(spec.length, spec.thickness, spec.height, spec.inset);
 }

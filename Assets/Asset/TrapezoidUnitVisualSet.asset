@@ -13,3 +13,4 @@ MonoBehaviour:
   m_Name: TrapezoidUnitVisualSet
   m_EditorClassIdentifier: Assembly-CSharp::TrapezoidUnitVisualSet
   cellMaterial: {fileID: 2100000, guid: 58b8d00fcef95e2498c2605c2906c659, type: 2}
+  ghostMaterial: {fileID: 2100000, guid: f6a0c5a0560b0fa4886a38b1b875e148, type: 2}
