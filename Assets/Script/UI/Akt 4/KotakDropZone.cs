@@ -106,6 +106,8 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
 
     public void Hover(in DragPayload payload, Vector2 p, Camera cam, float dt)
     {
+        if (payload.origin != DragOrigin.Bank) { HoverExit(); return; }   // blok dpz yang diangkat tidak memicu highlight Kotak
+        
         int idx = RowAt(p, cam);
         int target = (idx >= 0 && contents.CanMerge(idx, payload.piece)) ? idx : -1;   // row penuh atau penyebut beda: tanpa highlight
 

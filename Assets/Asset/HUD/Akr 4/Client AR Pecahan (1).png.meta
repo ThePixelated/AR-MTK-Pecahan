@@ -1,0 +1,881 @@
+fileFormatVersion: 2
+guid: 37149c4319d360943a71dd428ea560a2
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 0
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_0
+      rect:
+        serializedVersion: 2
+        x: 29
+        y: 3073
+        width: 484
+        height: 264
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 13191f047cf31b64f892c75f6a85aaea
+      internalID: 1974456959
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_1
+      rect:
+        serializedVersion: 2
+        x: 530
+        y: 3073
+        width: 478
+        height: 264
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 09750b68c13f9614087c99677d3d70c0
+      internalID: -1001433989
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_2
+      rect:
+        serializedVersion: 2
+        x: 1028
+        y: 3073
+        width: 481
+        height: 264
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a5af699d0daf0c143b0dd327f5cd3b05
+      internalID: 773609994
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_3
+      rect:
+        serializedVersion: 2
+        x: 1553
+        y: 2824
+        width: 70
+        height: 510
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e924a3e7264020140b25bfabdae150c5
+      internalID: 509823225
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_4
+      rect:
+        serializedVersion: 2
+        x: 1667
+        y: 2824
+        width: 35
+        height: 510
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 610e1ae888c36d149b4f7db126dae2a1
+      internalID: 285328153
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_5
+      rect:
+        serializedVersion: 2
+        x: 1752
+        y: 3187
+        width: 1383
+        height: 147
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 78789ec284990d84e94e5aa04df6c8e5
+      internalID: -493034367
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_6
+      rect:
+        serializedVersion: 2
+        x: 3152
+        y: 3114
+        width: 536
+        height: 223
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a8e5cd89fb61427409df823ecf6339ab
+      internalID: 1238159497
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_7
+      rect:
+        serializedVersion: 2
+        x: 3724
+        y: 3229
+        width: 468
+        height: 102
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fba15bb81d87c5f459448c8036d4a875
+      internalID: -331729984
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_8
+      rect:
+        serializedVersion: 2
+        x: 3721
+        y: 3152
+        width: 67
+        height: 47
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ceb0bcdb015d88946ac5af2c364b444f
+      internalID: 1929537009
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_9
+      rect:
+        serializedVersion: 2
+        x: 3817
+        y: 3144
+        width: 68
+        height: 67
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f24f5d307eb763b4ca3e1d7d0ed59bcb
+      internalID: 584517720
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_10
+      rect:
+        serializedVersion: 2
+        x: 53
+        y: 2959
+        width: 436
+        height: 100
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e860050bffa2c3e49b7d168eaceebac2
+      internalID: 1698339926
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_11
+      rect:
+        serializedVersion: 2
+        x: 507
+        y: 2959
+        width: 433
+        height: 100
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: acd47368d9df9cb4b8e2e153dade4f4e
+      internalID: -221851691
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_12
+      rect:
+        serializedVersion: 2
+        x: 958
+        y: 2959
+        width: 437
+        height: 100
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 26d9b86bafbfe95419a88a4ef3657b20
+      internalID: -822454302
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_13
+      rect:
+        serializedVersion: 2
+        x: 1770
+        y: 3035
+        width: 1344
+        height: 103
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 590464940a585f049a77cf399877df88
+      internalID: -1158238131
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_14
+      rect:
+        serializedVersion: 2
+        x: 3826
+        y: 2941
+        width: 325
+        height: 147
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d659c3df220d2a54c8f9419d9cd27a18
+      internalID: 562796686
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_15
+      rect:
+        serializedVersion: 2
+        x: 53
+        y: 2842
+        width: 436
+        height: 102
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c80f94f211a866649a59882960766bb8
+      internalID: 1976040326
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_16
+      rect:
+        serializedVersion: 2
+        x: 507
+        y: 2842
+        width: 436
+        height: 102
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4adea570907e8ba42b2e94827b0782f4
+      internalID: 535900472
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_17
+      rect:
+        serializedVersion: 2
+        x: 1770
+        y: 2593
+        width: 834
+        height: 392
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 79409610b9d8c0341b9e4406e3ddc776
+      internalID: 1192404979
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_18
+      rect:
+        serializedVersion: 2
+        x: 2628
+        y: 2593
+        width: 832
+        height: 392
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1e9afb51dd7acce49b0ee8808190628a
+      internalID: -460499283
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_19
+      rect:
+        serializedVersion: 2
+        x: 3483
+        y: 2845
+        width: 162
+        height: 146
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8fdf20e288c7aac458e53836e4cd86c1
+      internalID: 551985823
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_20
+      rect:
+        serializedVersion: 2
+        x: 3826
+        y: 2751
+        width: 325
+        height: 146
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8ef058b5df324744bb67d056a6bab370
+      internalID: 22607976
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_21
+      rect:
+        serializedVersion: 2
+        x: 53
+        y: 2728
+        width: 50
+        height: 99
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 70487d150fb13cc41845482beb5bfd29
+      internalID: -1027119128
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_22
+      rect:
+        serializedVersion: 2
+        x: 129
+        y: 2728
+        width: 97
+        height: 99
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 41b7f029ed4a60a49bfdd4c006a091cc
+      internalID: 810230351
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_23
+      rect:
+        serializedVersion: 2
+        x: 270
+        y: 2733
+        width: 1485
+        height: 68
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d2b3c8f9c5a835f49becae8b05419cfe
+      internalID: 1909485528
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_24
+      rect:
+        serializedVersion: 2
+        x: 3483
+        y: 2766
+        width: 147
+        height: 49
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 74481cfdda4863448a9385ac3442aeb7
+      internalID: -1364508195
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_25
+      rect:
+        serializedVersion: 2
+        x: 3636
+        y: 2766
+        width: 143
+        height: 49
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 213581882776eb5459af84184ed4bd06
+      internalID: 5914157
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_26
+      rect:
+        serializedVersion: 2
+        x: 261
+        y: 2657
+        width: 1485
+        height: 35
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 23b605dbf349c8440833ad08ac220bfd
+      internalID: -1910677449
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_27
+      rect:
+        serializedVersion: 2
+        x: 3486
+        y: 2672
+        width: 944
+        height: 53
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 03694415267b44841b2aad6e72d76ddd
+      internalID: -867199944
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_28
+      rect:
+        serializedVersion: 2
+        x: 3486
+        y: 2604
+        width: 214
+        height: 50
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a6a5d7fbd06a2a749b1eb2d635177b5e
+      internalID: 1115526785
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_29
+      rect:
+        serializedVersion: 2
+        x: 53
+        y: 2484
+        width: 436
+        height: 100
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 953dce8484a644f4cb40744589b9adfc
+      internalID: -1491525687
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_30
+      rect:
+        serializedVersion: 2
+        x: 5212
+        y: 179
+        width: 480
+        height: 266
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 87cde91ecfc8f3c468327ab278898883
+      internalID: -1201020051
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Client AR Pecahan (1)_31
+      rect:
+        serializedVersion: 2
+        x: 5812
+        y: 179
+        width: 47
+        height: 102
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d361c7d6d94b0324e974d71f1499936c
+      internalID: -1635170845
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 3e95864fad06f0545b9dbd6e555ebc35
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":64.0,"y":64.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      Client AR Pecahan (1)_0: 1974456959
+      Client AR Pecahan (1)_1: -1001433989
+      Client AR Pecahan (1)_10: 1698339926
+      Client AR Pecahan (1)_11: -221851691
+      Client AR Pecahan (1)_12: -822454302
+      Client AR Pecahan (1)_13: -1158238131
+      Client AR Pecahan (1)_14: 562796686
+      Client AR Pecahan (1)_15: 1976040326
+      Client AR Pecahan (1)_16: 535900472
+      Client AR Pecahan (1)_17: 1192404979
+      Client AR Pecahan (1)_18: -460499283
+      Client AR Pecahan (1)_19: 551985823
+      Client AR Pecahan (1)_2: 773609994
+      Client AR Pecahan (1)_20: 22607976
+      Client AR Pecahan (1)_21: -1027119128
+      Client AR Pecahan (1)_22: 810230351
+      Client AR Pecahan (1)_23: 1909485528
+      Client AR Pecahan (1)_24: -1364508195
+      Client AR Pecahan (1)_25: 5914157
+      Client AR Pecahan (1)_26: -1910677449
+      Client AR Pecahan (1)_27: -867199944
+      Client AR Pecahan (1)_28: 1115526785
+      Client AR Pecahan (1)_29: -1491525687
+      Client AR Pecahan (1)_3: 509823225
+      Client AR Pecahan (1)_30: -1201020051
+      Client AR Pecahan (1)_31: -1635170845
+      Client AR Pecahan (1)_4: 285328153
+      Client AR Pecahan (1)_5: -493034367
+      Client AR Pecahan (1)_6: 1238159497
+      Client AR Pecahan (1)_7: -331729984
+      Client AR Pecahan (1)_8: 1929537009
+      Client AR Pecahan (1)_9: 584517720
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

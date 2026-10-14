@@ -192,6 +192,16 @@ public class SessionSelfTest : MonoBehaviour
         s18.RemoveFromDpz(0);
         Check(s18.Dpz.IsEmpty, "hapus blok utuh");
 
+        // 19. Gabung antar-blok dpz lewat sesi
+        var s19 = new FractionSession(Operation.Add);
+        s19.TryDropToKotak(true, One); s19.TryDropToKotak(false, U(5)); s19.CommitProblem();
+        for (int i = 0; i < 5; i++) s19.TryDropToDpz(U(5));          // satu blok 5/5
+        s19.TryDropToDpz(U(5), 0);                                   // persis di atas blok penuh -> blok baru 1/5
+        s19.RemoveUnitFromDpz(0); s19.RemoveUnitFromDpz(0);          // blok 0 jadi 3/5
+        Check(s19.Dpz.Count == 2 && s19.Dpz.Pieces[0].numerator == 3 && s19.Dpz.Pieces[1].numerator == 1, "susunan [3/5, 1/5]");
+        Check(s19.PreviewMergeDpzBlocks(1, 0) == 1, "prediksi: 1 satuan pindah");
+        Check(s19.MergeDpzBlocks(1, 0) == 1 && s19.Dpz.Count == 1 && s19.Dpz.Pieces[0].numerator == 4, "gabung: [3/5, 1/5] -> [4/5]");
+
         Debug.Log(failed == 0 ? "SEMUA LOLOS (session)" : failed + " tes GAGAL (session)");
     }
 }

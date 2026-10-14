@@ -46,7 +46,11 @@ public class DpzView : MonoBehaviour
     bool bound;
     readonly List<DpzBlockView> blocks = new List<DpzBlockView>();
     int highlightedBlock = -1;
-    int mergeGhostBlock = -1;
+    int liftedBlock = -1;
+    int selectedBlock = -1;
+    int mergeTarget = -1;
+    int mergeCount;
+    bool mergeGhostOn;
     bool predictedExtra;
     Vector2 innerSize, targetInnerSize;               // (lebar X, kedalaman Z)
 
@@ -73,7 +77,7 @@ public class DpzView : MonoBehaviour
     public int BlockCount => blocks.Count;
 
     void OnEnable() => Bind();
-    void OnDisable() { ClearHover(); Unbind(); }
+    void OnDisable() { ClearHover(); ClearSelection(); Unbind(); }
 
     void Bind()
     {
@@ -122,11 +126,12 @@ public class DpzView : MonoBehaviour
     void Refresh()
     {
         HidePreview();
-        SetMergeGhost(-1, false);
+        SetMergeFeedback(-1, 0, false);
         predictedExtra = false;
 
         var pieces = session.Dpz.Pieces;
         int count = pieces.Count;
+        int oldCount = blocks.Count;
 
         while (blocks.Count > count)
         {
@@ -146,6 +151,11 @@ public class DpzView : MonoBehaviour
         }
 
         if (highlightedBlock >= count) highlightedBlock = -1;
+        if (liftedBlock >= count) liftedBlock = -1;
+
+        // Pilihan dicabut kalau jumlah blok berubah; tetap kalau hanya isi blok yang berubah (-1 satuan, merge)
+        if (selectedBlock >= 0 && (oldCount != count || selectedBlock >= count)) SetSelection(-1);
+
         RecomputeTarget();
     }
 
@@ -264,6 +274,58 @@ public class DpzView : MonoBehaviour
     public RejectReason TryDrop(Fraction piece, int blockIndex = -1) =>
         bound ? session.TryDropToDpz(piece, blockIndex) : RejectReason.SoalBelumDibentuk;
 
+    // Gabung antar-blok dpz (balok yang diangkat dilepas di atas balok lain); mengembalikan jumlah satuan yang pindah
+    public int TryMergeBlocks(int sourceIndex, int targetIndex) =>
+        bound ? session.MergeDpzBlocks(sourceIndex, targetIndex) : 0;
+
+    public bool TryGetBlockPiece(int index, out Fraction piece)
+    {
+        piece = default;
+        if (!bound || index < 0 || index >= session.Dpz.Count) return false;
+        piece = session.Dpz.Pieces[index];
+        return true;
+    }
+
+    // Blok yang sedang diangkat: selnya disembunyikan, garis lantai highlight dan beranimasi (data tidak berubah sampai dilepas)
+    public void SetLiftedBlock(int index)
+    {
+        if (index >= 0) ClearSelection();   // mengangkat balok mencabut pilihan
+
+        if (liftedBlock >= 0 && liftedBlock < blocks.Count && blocks[liftedBlock]) blocks[liftedBlock].SetLifted(false);
+        liftedBlock = index;
+        if (index >= 0 && index < blocks.Count && blocks[index]) blocks[index].SetLifted(true);
+    }
+
+    // ---------- seleksi blok (tap-select) ----------
+    public int SelectedBlock => selectedBlock;
+    public event System.Action<int> SelectionChanged;   // index terpilih, atau -1
+
+    public void SelectBlock(int index) => SetSelection(bound && index >= 0 && index < blocks.Count ? index : -1);
+    public void ClearSelection() => SetSelection(-1);
+
+    void SetSelection(int index)
+    {
+        if (index == selectedBlock) return;
+
+        if (selectedBlock >= 0 && selectedBlock < blocks.Count && blocks[selectedBlock]) blocks[selectedBlock].SetSelected(false);
+        selectedBlock = index;
+        if (index >= 0 && index < blocks.Count && blocks[index]) blocks[index].SetSelected(true);
+
+        SelectionChanged?.Invoke(selectedBlock);
+    }
+
+    // Ukuran satu baris blok: panjang = Whole Length (track penuh), lebar = tebal baris (meter)
+    public Vector2 BlockFootprint => new Vector2(style.wholeLength, style.thickness);
+
+    // Titik tengah atas blok ke-index (koordinat lokal objek ini): di tengah baris, tepat di atas tinggi sel
+    public Vector3 BlockTopCenterLocal(int index, float extraLift)
+    {
+        Vector3 o = BlockOrigin(index);
+        return new Vector3(o.x + style.wholeLength * 0.5f,
+                           style.baseLift + style.height + extraLift,
+                           o.z - style.thickness * 0.5f);   // blok memanjang ke -Z dari origin-nya
+    }
+
     // ---------- shader area dan judul ----------
     void ApplyAreaVisuals()
     {
@@ -357,6 +419,7 @@ public class DpzView : MonoBehaviour
     }
 
     // ---------- umpan balik hover (satu sumber kebenaran: debug zone dan zona dunia memanggil ini) ----------
+    // Potongan dari bank
     public void SetHover(Fraction piece, int blockUnderPointer = -1, bool overInnerArea = true)
     {
         if (!bound) return;
@@ -367,32 +430,47 @@ public class DpzView : MonoBehaviour
         int target = session.FindDpzMergeTarget(piece, blockUnderPointer);
         if (target >= 0)
         {
-            SetHighlightedBlock(target);        // blok sejenis yang belum penuh: highlight blok itu, tanpa preview
+            SetHighlightedBlock(target);                 // blok sejenis yang belum penuh: garis blok itu highlight, tanpa preview
             HidePreview();
-            SetMergeGhost(target, ghostAllowed);   // sel berikutnya tampil sebagai ghost: blok terlihat penuh
+            SetMergeFeedback(target, 1, ghostAllowed);   // sel berikutnya: isian prediksi (dan ghost satuan sesuai scope)
             SetPredictedExtra(false);
             return;
         }
 
         SetHighlightedBlock(-1);
-        SetMergeGhost(-1, false);
+        SetMergeFeedback(-1, 0, false);
 
         if (session.PreviewDropToDpz(piece, blockUnderPointer) == RejectReason.None)
         {
-            ShowPreview(piece, ghostAllowed);   // slot blok baru: track animasi plus ghost satuan
+            ShowPreview(piece, ghostAllowed);            // slot blok baru: track animasi, sel pertama prediksi, ghost satuan
             SetPredictedExtra(true);
         }
         else
         {
-            HidePreview();                      // ditolak: tanpa preview
+            HidePreview();                               // ditolak: tanpa preview
             SetPredictedExtra(false);
         }
+    }
+
+    // Balok dpz yang diangkat (sourceIndex) sedang di atas balok dpz lain (targetIndex)
+    public void SetHoverLifted(int sourceIndex, int targetIndex)
+    {
+        if (!bound) return;
+
+        int count = session.PreviewMergeDpzBlocks(sourceIndex, targetIndex);   // hanya yang muat
+        if (count <= 0) { ClearHover(); return; }                              // penyebut beda, penuh, atau balok yang sama
+
+        bool ghostAllowed = style.ghostScope != GhostScope.Off;                // pointer di atas balok = area dalam
+        HidePreview();
+        SetHighlightedBlock(targetIndex);
+        SetMergeFeedback(targetIndex, count, ghostAllowed);                    // sebanyak sel yang akan masuk
+        SetPredictedExtra(false);
     }
 
     public void ClearHover()
     {
         SetHighlightedBlock(-1);
-        SetMergeGhost(-1, false);
+        SetMergeFeedback(-1, 0, false);
         HidePreview();
         SetPredictedExtra(false);
     }
@@ -408,20 +486,30 @@ public class DpzView : MonoBehaviour
         if (index >= 0 && index < blocks.Count && blocks[index]) blocks[index].SetHighlight(1f);
     }
 
-    void SetMergeGhost(int blockIndex, bool allowed)
+    // Umpan balik merge di blok target: unitCount sel berikutnya diberi isian prediksi, dan ghost kalau diizinkan
+    void SetMergeFeedback(int blockIndex, int unitCount, bool ghostAllowed)
     {
-        int want = allowed ? blockIndex : -1;
-        if (want == mergeGhostBlock) return;
+        bool ghost = blockIndex >= 0 && ghostAllowed;
+        if (blockIndex == mergeTarget && unitCount == mergeCount && ghost == mergeGhostOn) return;
 
-        if (mergeGhostBlock >= 0 && mergeGhostBlock < blocks.Count && blocks[mergeGhostBlock])
-            blocks[mergeGhostBlock].HideGhostUnit();
-
-        mergeGhostBlock = want;
-        if (want >= 0 && want < blocks.Count && blocks[want])
+        if (mergeTarget >= 0 && mergeTarget < blocks.Count && blocks[mergeTarget])
         {
-            DpzBlockView b = blocks[want];
-            b.ShowGhostUnit((int)b.Piece.numerator, (int)b.Piece.denominator,
-                            controller.Palette.Get(b.Piece.denominator), style.ghostAlpha);
+            blocks[mergeTarget].HideGhostUnit();
+            blocks[mergeTarget].SetPreviewRange(-1, 0);
+        }
+
+        mergeTarget = blockIndex;
+        mergeCount = unitCount;
+        mergeGhostOn = ghost;
+
+        if (blockIndex >= 0 && blockIndex < blocks.Count && blocks[blockIndex])
+        {
+            DpzBlockView b = blocks[blockIndex];
+            int first = (int)b.Piece.numerator;   // sel kosong pertama
+            int count = Mathf.Max(1, unitCount);
+            b.SetPreviewRange(first, count);
+            if (ghost) b.ShowGhostUnits(first, count, (int)b.Piece.denominator,
+                                        controller.Palette.Get(b.Piece.denominator), style.ghostAlpha);
         }
     }
 
@@ -435,7 +523,7 @@ public class DpzView : MonoBehaviour
         preview.gameObject.SetActive(true);
 
         Color c = controller.Palette.Get(piece.denominator);
-        preview.ShowPreview(piece, c, BlockOrigin(row), style.previewFilledAlpha);
+        preview.ShowPreview(piece, c, BlockOrigin(row));
         if (ghostAllowed) preview.ShowGhostUnit(0, (int)piece.denominator, c, style.ghostAlpha);
         else preview.HideGhostUnit();
 
@@ -457,4 +545,16 @@ public class DpzView : MonoBehaviour
         Refresh();
         ApplyAreaVisuals();
     }
+
+    [ContextMenu("Debug: Toggle highlight blok 0")]   // tes highlight tanpa perlu drag
+    void DebugToggleHighlight()
+    {
+        if (blocks.Count == 0) { Debug.Log("[Dpz] belum ada blok", this); return; }
+        SetHighlightedBlock(highlightedBlock == 0 ? -1 : 0);
+        Debug.Log($"[Dpz] {blocks[0].DebugInfo()}", this);
+    }
+
+    [ContextMenu("Debug: Cetak status")]
+    void DebugPrintState() =>
+        Debug.Log($"[Dpz] bound={bound} blok={blocks.Count} dpzMask={dpzMask.value} layer={DpzLayer} outerCol={(outerCol != null)} innerCol={(innerCol != null)}", this);
 }

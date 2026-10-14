@@ -17,6 +17,8 @@ public class DpzBlockView : MonoBehaviour
     static readonly int PhaseId = Shader.PropertyToID("_Phase");
     static readonly int EmptyAlphaId = Shader.PropertyToID("_EmptyAlpha");
     static readonly int FilledAlphaId = Shader.PropertyToID("_FilledAlpha");
+    static readonly int PreviewCellId = Shader.PropertyToID("_PreviewCell");
+    static readonly int PreviewCountId = Shader.PropertyToID("_PreviewCount");
     static readonly int LineTexId = Shader.PropertyToID("_LineTex");
 
     public Fraction Piece { get; private set; }
@@ -32,19 +34,24 @@ public class DpzBlockView : MonoBehaviour
     DpzCollider colliderTag;
     readonly List<GameObject> units = new List<GameObject>();
 
-    GameObject ghostUnit;
+    readonly List<GameObject> ghostUnits = new List<GameObject>();
+    int ghostCount;
     bool ghostActive;
     float ghostBaseAlpha;
     float ghostPhase;
 
     Color blockColor = Color.white;
-    float highlight;
+    float highlight;       // efektif = terbesar dari hover, terpilih, diangkat
+    float hoverAmount;     // dari hover (DpzView.SetHighlightedBlock)
+    bool selected;         // dari tap-select
+    bool lifted;           // sedang diangkat
     float phase;
     float animSpeed;
     bool animating;
     bool hasPiece;
     bool isPreview;
-    float previewFilledAlpha;
+    int previewCell = -1;
+    int previewCount = 1;
 
     public void Init(DpzStyle style, UnitVisualSet visuals, Material decalMaterial, DpzView owner, int layer)
     {
@@ -80,6 +87,8 @@ public class DpzBlockView : MonoBehaviour
         boxCollider.size = new Vector3(style.wholeLength, h, style.thickness);
     }
 
+    float CellHighlight => style.highlightCells ? highlight : 0f;
+
     public void Show(Fraction piece, int index, Color color, Vector3 localPosition)
     {
         Index = index;
@@ -106,13 +115,13 @@ public class DpzBlockView : MonoBehaviour
         for (int i = 0; i < units.Count; i++)
         {
             GameObject u = units[i];
-            bool on = i < n;
+            bool on = i < n && !lifted;
             if (u.activeSelf != on) u.SetActive(on);
-            if (!on) continue;
+            if (i >= n) continue;
 
             u.transform.localPosition = new Vector3(i * pitch + style.cellGap * 0.5f, style.baseLift, 0f);
             visuals.Configure(u, spec, color);
-            visuals.SetHighlight(u, highlight);
+            visuals.SetHighlight(u, CellHighlight);
         }
 
         track.localPosition = new Vector3(0f, style.baseLift, 0f);
@@ -120,8 +129,8 @@ public class DpzBlockView : MonoBehaviour
         ApplyTrack();
     }
 
-    // Preview slot blok baru: hanya garis lantai (d sel), selalu highlight; tanpa collider supaya tidak tertangkap raycast
-    public void ShowPreview(Fraction piece, Color color, Vector3 localPosition, float filledAlpha)
+    // Preview slot blok baru: hanya garis lantai (d sel); sel pertama ditandai prediksi. Tanpa collider.
+    public void ShowPreview(Fraction piece, Color color, Vector3 localPosition)
     {
         transform.localPosition = localPosition;
         boxCollider.enabled = false;
@@ -130,7 +139,8 @@ public class DpzBlockView : MonoBehaviour
         Piece = piece; blockColor = color;
         hasPiece = false;                      // kalau dipakai Show lagi, gambar ulang penuh
         isPreview = true;
-        previewFilledAlpha = filledAlpha;
+        previewCell = 0;
+        previewCount = 1;
         highlight = 1f;
 
         track.localPosition = new Vector3(0f, style.baseLift, 0f);
@@ -138,37 +148,101 @@ public class DpzBlockView : MonoBehaviour
         ApplyTrack();
     }
 
-    // Ghost satuan semi-transparan di sel cellIndex (0-based) pada track berpenyebut denominator
-    public void ShowGhostUnit(int cellIndex, int denominator, Color color, float alpha)
+    // Tandai rentang sel prediksi di track blok ini (startCell < 0 = tidak ada)
+    public void SetPreviewRange(int startCell, int count)
     {
-        if (!ghostUnit) ghostUnit = visuals.CreateGhost(transform);
+        if (startCell == previewCell && count == previewCount) return;
+        previewCell = startCell;
+        previewCount = count;
+        if (hasPiece || isPreview) ApplyTrack();
+    }
+
+    public void SetPreviewCell(int cell) => SetPreviewRange(cell, cell < 0 ? 0 : 1);
+
+    // Blok sedang diangkat: sel disembunyikan; garis lantainya highlight dan beranimasi sebagai tanda "balok ini yang diangkat"
+    public void SetLifted(bool value)
+    {
+        if (lifted == value) return;
+        lifted = value;
+
+        if (hasPiece)
+        {
+            int n = (int)Piece.numerator;
+            for (int i = 0; i < units.Count; i++)
+            {
+                bool on = i < n && !lifted;
+                if (units[i].activeSelf != on) units[i].SetActive(on);
+            }
+        }
+        ApplyEffectiveHighlight();
+    }
+
+    // Ghost satuan semi-transparan sebanyak count, mulai dari sel startCell (0-based), pada track berpenyebut denominator
+    public void ShowGhostUnits(int startCell, int count, int denominator, Color color, float alpha)
+    {
+        count = Mathf.Max(1, count);
+        while (ghostUnits.Count < count) ghostUnits.Add(visuals.CreateGhost(transform));
 
         float pitch = style.wholeLength / denominator;
         var spec = new UnitCellSpec(Mathf.Max(0.0001f, pitch - style.cellGap), style.thickness, style.height, style.inset);
+        Color c = style.ghostForceColor ? style.ghostColor : color;
 
-        ghostUnit.SetActive(true);
-        ghostUnit.transform.localPosition = new Vector3(cellIndex * pitch + style.cellGap * 0.5f, style.baseLift, 0f);
-        visuals.ConfigureGhost(ghostUnit, spec, style.ghostForceColor ? style.ghostColor : color, alpha);
+        for (int i = 0; i < ghostUnits.Count; i++)
+        {
+            GameObject g = ghostUnits[i];
+            bool on = i < count;
+            if (g.activeSelf != on) g.SetActive(on);
+            if (!on) continue;
 
+            g.transform.localPosition = new Vector3((startCell + i) * pitch + style.cellGap * 0.5f, style.baseLift, 0f);
+            visuals.ConfigureGhost(g, spec, c, alpha);
+        }
+
+        ghostCount = count;
         ghostActive = true;
         ghostBaseAlpha = alpha;
         ghostPhase = 0f;
     }
 
+    public void ShowGhostUnit(int cellIndex, int denominator, Color color, float alpha) =>
+        ShowGhostUnits(cellIndex, 1, denominator, color, alpha);
+
     public void HideGhostUnit()
     {
         ghostActive = false;
-        if (ghostUnit && ghostUnit.activeSelf) ghostUnit.SetActive(false);
+        foreach (var g in ghostUnits) if (g.activeSelf) g.SetActive(false);
     }
 
+    // Highlight dari hover. Garis lantai selalu ikut; sel ikut terang hanya kalau style.highlightCells aktif.
     public void SetHighlight(float amount)
     {
-        amount = Mathf.Clamp01(amount);
-        if (Mathf.Approximately(amount, highlight)) return;
-        highlight = amount;
+        hoverAmount = Mathf.Clamp01(amount);
+        ApplyEffectiveHighlight();
+    }
 
-        foreach (var u in units) if (u.activeSelf) visuals.SetHighlight(u, highlight);
+    public void SetSelected(bool value)
+    {
+        if (selected == value) return;
+        selected = value;
+        ApplyEffectiveHighlight();
+    }
+
+    void ApplyEffectiveHighlight()
+    {
+        float effective = Mathf.Max(hoverAmount, (selected || lifted) ? 1f : 0f);
+        if (Mathf.Approximately(effective, highlight)) return;
+        highlight = effective;
+
+        if (style.highlightCells)
+            foreach (var u in units) if (u.activeSelf) visuals.SetHighlight(u, highlight);
         if (hasPiece || isPreview) ApplyTrack();
+    }
+
+    public string DebugInfo()
+    {
+        int active = 0;
+        foreach (var u in units) if (u.activeSelf) active++;
+        return $"blok #{Index} {Piece.numerator}/{Piece.denominator} | highlight={highlight:0.00} | selected={selected} lifted={lifted} | highlightCells={style.highlightCells} | sel aktif={active}/{units.Count}";
     }
 
     void ApplyTrack()
@@ -182,7 +256,7 @@ public class DpzBlockView : MonoBehaviour
 
         trackRenderer.GetPropertyBlock(mpb);
         mpb.SetFloat(DenomId, Piece.denominator);
-        mpb.SetFloat(FilledId, Piece.numerator);
+        mpb.SetFloat(FilledId, isPreview ? 0f : Piece.numerator);   // preview: tidak ada sel terisi, sel prediksi ditandai terpisah
         mpb.SetFloat(LengthId, style.wholeLength);
         mpb.SetFloat(WidthId, style.thickness);
         mpb.SetColor(LineColorId, line);
@@ -192,7 +266,9 @@ public class DpzBlockView : MonoBehaviour
         mpb.SetFloat(DashGapId, style.dashGap);
         mpb.SetFloat(TexTileId, Mathf.Max(0.0001f, style.textureTile));
         mpb.SetFloat(EmptyAlphaId, style.emptyCellAlpha);
-        mpb.SetFloat(FilledAlphaId, isPreview ? previewFilledAlpha : 0f);
+        mpb.SetFloat(FilledAlphaId, style.previewFilledAlpha);
+        mpb.SetFloat(PreviewCellId, previewCell);
+        mpb.SetFloat(PreviewCountId, previewCount);
         mpb.SetFloat(PhaseId, phase);
         mpb.SetTexture(LineTexId, style.lineTexture != null ? style.lineTexture : Texture2D.whiteTexture);
         trackRenderer.SetPropertyBlock(mpb);
@@ -208,11 +284,12 @@ public class DpzBlockView : MonoBehaviour
             trackRenderer.SetPropertyBlock(mpb);
         }
 
-        if (ghostActive && ghostUnit && style.ghostPulseSpeed > 0.001f)
+        if (ghostActive && style.ghostPulseSpeed > 0.001f)
         {
             ghostPhase += Time.unscaledDeltaTime * style.ghostPulseSpeed * Mathf.PI * 2f;
             float k = 0.5f + 0.5f * Mathf.Sin(ghostPhase);
-            visuals.SetGhostAlpha(ghostUnit, ghostBaseAlpha * (1f - style.ghostPulseAmount * k));
+            float alpha = ghostBaseAlpha * (1f - style.ghostPulseAmount * k);
+            for (int i = 0; i < ghostCount && i < ghostUnits.Count; i++) visuals.SetGhostAlpha(ghostUnits[i], alpha);
         }
     }
 }

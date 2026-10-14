@@ -38,6 +38,37 @@ public class KotakContents
         Changed?.Invoke();
     }
 
+    // Berapa satuan yang bisa pindah dari blok source ke blok target:
+    // penyebut sama, bukan blok yang sama, target belum penuh; hanya sebanyak yang muat
+    public int CountTransferable(int source, int target)
+    {
+        if (source == target || source < 0 || target < 0 || source >= pieces.Count || target >= pieces.Count) return 0;
+
+        Fraction s = pieces[source], t = pieces[target];
+        if (s.denominator != t.denominator) return 0;
+
+        long room = t.denominator - t.numerator;
+        return (int)Math.Max(0L, Math.Min(s.numerator, room));
+    }
+
+    // Pindahkan satuan dari source ke target (hanya yang muat). Sumber habis = blok sumber dihapus.
+    // Satu notifikasi Changed setelah semua berubah. Mengembalikan jumlah satuan yang pindah.
+    public int TransferUnits(int source, int target)
+    {
+        int moved = CountTransferable(source, target);
+        if (moved <= 0) return 0;
+
+        Fraction s = pieces[source], t = pieces[target];
+        pieces[target] = new Fraction(t.numerator + moved, t.denominator);
+
+        long left = s.numerator - moved;
+        if (left <= 0) pieces.RemoveAt(source);
+        else pieces[source] = new Fraction(left, s.denominator);
+
+        Changed?.Invoke();
+        return moved;
+    }
+
     public void RemoveAt(int index) { pieces.RemoveAt(index); Changed?.Invoke(); }
     public void Clear() { if (pieces.Count == 0) return; pieces.Clear(); Changed?.Invoke(); }
 

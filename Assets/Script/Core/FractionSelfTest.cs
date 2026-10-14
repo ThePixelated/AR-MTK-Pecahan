@@ -54,6 +54,21 @@ public class FractionSelfTest : MonoBehaviour
         kd2.DecrementAt(1);
         Check(kd2.Count == 1 && kd2.Pieces[0].denominator == 4, "1/5 -1 satuan = blok hilang");
 
+        // TransferUnits: hanya yang muat; sumber habis = blok hilang
+        var ktr = new KotakContents();
+        ktr.Add(new Fraction(3, 5)); ktr.Add(new Fraction(4, 5));
+        Check(ktr.CountTransferable(0, 1) == 1, "3/5 -> 4/5: hanya 1 satuan yang muat");
+        Check(ktr.TransferUnits(0, 1) == 1 && ktr.Count == 2 && ktr.Pieces[0].numerator == 2 && ktr.Pieces[1].numerator == 5,
+              "[3/5, 4/5] -> [2/5, 5/5]");
+        Check(ktr.TransferUnits(0, 1) == 0, "target penuh: tidak ada yang pindah");
+
+        var ktr2 = new KotakContents();
+        ktr2.Add(new Fraction(2, 5)); ktr2.Add(new Fraction(1, 3)); ktr2.Add(new Fraction(1, 5));
+        Check(ktr2.TransferUnits(0, 2) == 2 && ktr2.Count == 2 && ktr2.Pieces[0].denominator == 3
+              && ktr2.Pieces[1].numerator == 3 && ktr2.Pieces[1].denominator == 5,
+              "[2/5, 1/3, 1/5] -> [1/3, 3/5]");
+        Check(ktr2.CountTransferable(0, 1) == 0 && ktr2.CountTransferable(1, 1) == 0, "penyebut beda atau blok sama: 0");
+
         // Stress overflow: LCM(1..25) > int.MaxValue
         Fraction h = Fraction.Zero;
         for (int den = 2; den <= 25; den++) h += Fraction.Unit(den);

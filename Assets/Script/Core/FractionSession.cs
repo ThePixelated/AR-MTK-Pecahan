@@ -98,6 +98,12 @@ public class FractionSession
 
     public void RemoveFromDpz(int index) => Dpz.RemoveAt(index);          // hapus blok utuh
     public void RemoveUnitFromDpz(int index) => Dpz.DecrementAt(index);   // -1 satuan
+
+    // Gabung antar-blok dpz: prediksi berapa satuan yang pindah (tanpa mengubah apa pun)
+    public int PreviewMergeDpzBlocks(int source, int target) => Dpz.CountTransferable(source, target);
+
+    // Gabung antar-blok dpz: pindahkan satuan dari source ke target, hanya yang muat; mengembalikan jumlah yang pindah
+    public int MergeDpzBlocks(int source, int target) => Dpz.TransferUnits(source, target);
     public void ClearDpz() => Dpz.Clear();
 
     // ---- Cek Hasil ----

@@ -33,12 +33,13 @@ MonoBehaviour:
   forceLineColor: 0
   forcedLineColor: {r: 1, g: 1, b: 1, a: 1}
   emptyCellAlpha: 0.299
-  previewFilledAlpha: 0.792
+  previewFilledAlpha: 0.6
   animationSpeed: 0.01
   animateOnlyWhenHighlighted: 1
+  highlightCells: 1
   highlightBrighten: 0.806
   ghostScope: 2
-  ghostAlpha: 0.868
+  ghostAlpha: 0.9
   ghostForceColor: 0
   ghostColor: {r: 1, g: 1, b: 1, a: 1}
   ghostPulseSpeed: 0.7

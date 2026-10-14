@@ -16,6 +16,8 @@ Shader "ARPecahan/TrackDecal"
         _EmptyAlpha ("Empty Cell Alpha", Range(0,1)) = 0.08
         _LineTex ("Line Texture", 2D) = "white" {}
         _FilledAlpha ("Filled Cell Alpha (preview)", Range(0,1)) = 0
+        _PreviewCell ("Preview Cell Index (-1 = none)", Float) = -1
+        _PreviewCount ("Preview Cell Count", Float) = 1
     }
     SubShader
     {
@@ -34,7 +36,10 @@ Shader "ARPecahan/TrackDecal"
             #include "UnityCG.cginc"
 
             float _Denominator, _Filled, _TrackLength, _TrackWidth, _LineWidth, _Style;
-            float _DashLength, _DashGap, _TexTile, _Phase, _EmptyAlpha, _FilledAlpha;
+
+            float _DashLength, _DashGap, _TexTile, _Phase, _EmptyAlpha, _FilledAlpha, _PreviewCell, _PreviewCount;
+            // float _DashLength, _DashGap, _TexTile, _Phase, _EmptyAlpha, _FilledAlpha, _PreviewCell;
+            // float _DashLength, _DashGap, _TexTile, _Phase, _EmptyAlpha, _FilledAlpha;
             // float _DashLength, _DashGap, _TexTile, _Phase, _EmptyAlpha;
             float4 _LineColor;
             sampler2D _LineTex;
@@ -95,8 +100,9 @@ Shader "ARPecahan/TrackDecal"
                 if (_Style > 1.5) { col = tx.rgb * _LineColor.rgb; pattern = tx.a; }
 
                 float lineAlpha = onLine * pattern * _LineColor.a;
-                float cellAlpha = (s >= _Filled) ? _EmptyAlpha : _FilledAlpha;   // sel kosong samar; sel terisi hanya tampil di preview
-                cellAlpha *= (1.0 - onLine);
+                float cellAlpha = (s >= _Filled) ? _EmptyAlpha : 0.0;
+                if (_PreviewCell >= 0.0 && s >= _PreviewCell && s < _PreviewCell + _PreviewCount)   // sel prediksi   // sel kosong samar; sel terisi hanya tampil di preview
+                cellAlpha = max(cellAlpha, _FilledAlpha); 
                 return float4(col, max(lineAlpha, cellAlpha));
             }
             ENDCG

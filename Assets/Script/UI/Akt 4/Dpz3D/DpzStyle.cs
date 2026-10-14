@@ -64,6 +64,7 @@ public class DpzStyle : ScriptableObject
     [Header("Animasi dan highlight")]
     public float animationSpeed = 0f;                // meter/detik, 0 = statis
     public bool animateOnlyWhenHighlighted = true;
+    public bool highlightCells = false;   // false: highlight hanya di garis border; true: sel balok ikut terang
     [Range(0f, 1f)] public float highlightBrighten = 0.5f;
 
     [Header("Ghost satuan: prediksi potongan (semi-transparan)")]

@@ -24,21 +24,41 @@ public class WorldDpzDropZone : MonoBehaviour, IFractionDropZone
     {
         if (!Cast(p, out DpzHit hit)) { dpzView.ClearHover(); return; }
 
-        int blockIndex = hit.kind == DpzColliderKind.Block ? hit.blockIndex : -1;
-        bool overInner = hit.kind != DpzColliderKind.Outer;
-        dpzView.SetHover(payload.piece, blockIndex, overInner);
+        if (payload.origin == DragOrigin.Bank)
+        {
+            int blockIndex = hit.kind == DpzColliderKind.Block ? hit.blockIndex : -1;
+            bool overInner = hit.kind != DpzColliderKind.Outer;
+            dpzView.SetHover(payload.piece, blockIndex, overInner);
+        }
+        else if (payload.origin == DragOrigin.Dpz && hit.kind == DpzColliderKind.Block)
+        {
+            dpzView.SetHoverLifted(payload.index, hit.blockIndex);   // gabung antar-balok: hanya yang muat
+        }
+        else
+        {
+            dpzView.ClearHover();
+        }
     }
 
     public void HoverExit() => dpzView.ClearHover();
 
     public RejectReason Accept(in DragPayload payload, Vector2 p, Camera uiCam)
     {
-        if (payload.origin != DragOrigin.Bank) return RejectReason.None;   // asal lain diurus di 5b-2b
         if (!Cast(p, out DpzHit hit)) return RejectReason.None;
 
+        if (payload.origin == DragOrigin.Dpz)
+        {
+            int source = payload.index;
+            dpzView.ClearHover();
+            if (hit.kind == DpzColliderKind.Block) dpzView.TryMergeBlocks(source, hit.blockIndex);   // tidak valid = batal
+            return RejectReason.None;
+        }
+
+        if (payload.origin != DragOrigin.Bank) return RejectReason.None;
+
         Fraction piece = payload.piece;
-        int blockIndex = hit.kind == DpzColliderKind.Block ? hit.blockIndex : -1;
+        int targetBlock = hit.kind == DpzColliderKind.Block ? hit.blockIndex : -1;
         dpzView.ClearHover();
-        return dpzView.TryDrop(piece, blockIndex);   // merge atau blok baru; alasan penolakan jadi notifikasi
+        return dpzView.TryDrop(piece, targetBlock);   // merge atau blok baru; alasan penolakan jadi notifikasi
     }
 }
