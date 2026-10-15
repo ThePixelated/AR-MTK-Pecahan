@@ -50,6 +50,8 @@ public class DpzBlockView : MonoBehaviour
     bool animating;
     bool hasPiece;
     bool isPreview;
+    Vector3 desiredPos;    // posisi tujuan (lokal); transform meluncur ke sini saat reflow
+    bool placed;           // sudah pernah diletakkan (kemunculan pertama langsung di tempat)
     int previewCell = -1;
     int previewCount = 1;
 
@@ -80,6 +82,13 @@ public class DpzBlockView : MonoBehaviour
     // Paksa gambar ulang di Show berikutnya (setelah DpzStyle diubah)
     public void InvalidateVisual() => hasPiece = false;
 
+    // Mulai meluncur dari posisi 'from' menuju posisi tujuan (animasi reflow setelah ada baris yang hilang)
+    public void AnimateFrom(Vector3 from)
+    {
+        if (style.reflowSpeed <= 0f) return;
+        transform.localPosition = from;
+    }
+
     void SizeCollider()
     {
         float h = owner.ColliderHeight;
@@ -95,7 +104,8 @@ public class DpzBlockView : MonoBehaviour
         isPreview = false;
         colliderTag.blockIndex = index;
         boxCollider.enabled = true;
-        transform.localPosition = localPosition;
+        desiredPos = localPosition;
+        if (!placed || style.reflowSpeed <= 0f) { transform.localPosition = localPosition; placed = true; }   // pertama kali atau tanpa animasi: langsung
 
         bool same = hasPiece && piece.numerator == Piece.numerator
                              && piece.denominator == Piece.denominator && color == blockColor;
@@ -132,6 +142,8 @@ public class DpzBlockView : MonoBehaviour
     // Preview slot blok baru: hanya garis lantai (d sel); sel pertama ditandai prediksi. Tanpa collider.
     public void ShowPreview(Fraction piece, Color color, Vector3 localPosition)
     {
+        desiredPos = localPosition;
+        placed = true;
         transform.localPosition = localPosition;
         boxCollider.enabled = false;
         foreach (var u in units) if (u.activeSelf) u.SetActive(false);
@@ -276,6 +288,13 @@ public class DpzBlockView : MonoBehaviour
 
     void Update()
     {
+        if (style.reflowSpeed > 0f && (transform.localPosition - desiredPos).sqrMagnitude > 1e-10f)
+        {
+            float k = 1f - Mathf.Exp(-style.reflowSpeed * Time.unscaledDeltaTime);
+            Vector3 p = Vector3.Lerp(transform.localPosition, desiredPos, k);
+            transform.localPosition = (p - desiredPos).sqrMagnitude < 1e-10f ? desiredPos : p;
+        }
+
         if (animating)
         {
             phase += animSpeed * Time.unscaledDeltaTime;

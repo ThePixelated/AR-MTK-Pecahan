@@ -52,6 +52,7 @@ public class DpzView : MonoBehaviour
     int mergeCount;
     bool mergeGhostOn;
     bool predictedExtra;
+    bool tracked = true;   // false = marker hilang
     Vector2 innerSize, targetInnerSize;               // (lebar X, kedalaman Z)
 
     BoxCollider outerCol, innerCol;
@@ -75,6 +76,15 @@ public class DpzView : MonoBehaviour
 
     public float ColliderHeight => colliderHeight;
     public int BlockCount => blocks.Count;
+    public bool Tracked => tracked;
+
+    // Dipanggil DpzTrackingGate: marker hilang = dpz tidak bisa disentuh (raycast tidak mengenai apa pun)
+    public void SetTracked(bool value)
+    {
+        if (tracked == value) return;
+        tracked = value;
+        if (!value) { ClearHover(); ClearSelection(); }
+    }
 
     void OnEnable() => Bind();
     void OnDisable() { ClearHover(); ClearSelection(); Unbind(); }
@@ -133,6 +143,10 @@ public class DpzView : MonoBehaviour
         int count = pieces.Count;
         int oldCount = blocks.Count;
 
+        // Ada baris yang hilang? (LastRemovedIndex diisi KotakContents sebelum Changed)
+        int removedAt = session.Dpz.LastRemovedIndex;
+        bool reflow = style.reflowSpeed > 0f && removedAt >= 0 && count == oldCount - 1;
+
         while (blocks.Count > count)
         {
             DpzBlockView extra = blocks[blocks.Count - 1];
@@ -149,6 +163,10 @@ public class DpzView : MonoBehaviour
             blocks[i].Show(p, i, controller.Palette.Get(p.denominator), BlockOrigin(i));
             blocks[i].SetHighlight(i == highlightedBlock ? 1f : 0f);
         }
+        
+        // Isi yang bergeser mulai dari removedAt meluncur dari posisi lamanya (satu baris di bawah) ke posisi barunya
+        if (reflow)
+            for (int i = removedAt; i < count; i++) blocks[i].AnimateFrom(BlockOrigin(i + 1));
 
         if (highlightedBlock >= count) highlightedBlock = -1;
         if (liftedBlock >= count) liftedBlock = -1;
@@ -248,7 +266,7 @@ public class DpzView : MonoBehaviour
     public bool Raycast(Vector2 screenPos, Camera cam, out DpzHit result)
     {
         result = default;
-        if (!bound || cam == null || dpzMask.value == 0) return false;
+        if (!bound || !tracked || cam == null || dpzMask.value == 0) return false;
 
         Ray ray = cam.ScreenPointToRay(screenPos);
         int n = Physics.RaycastNonAlloc(ray, hitBuffer, raycastMaxDistance, dpzMask, QueryTriggerInteraction.Collide);

@@ -69,6 +69,25 @@ public class FractionSelfTest : MonoBehaviour
               "[2/5, 1/3, 1/5] -> [1/3, 3/5]");
         Check(ktr2.CountTransferable(0, 1) == 0 && ktr2.CountTransferable(1, 1) == 0, "penyebut beda atau blok sama: 0");
 
+        // LastRemovedIndex: dipakai animasi reflow
+        var klr = new KotakContents();
+        klr.Add(Fraction.Unit(2)); klr.Add(Fraction.Unit(3)); klr.Add(Fraction.Unit(4));
+        Check(klr.LastRemovedIndex == -1, "Add: tidak ada yang dihapus");
+        klr.RemoveAt(1);
+        Check(klr.LastRemovedIndex == 1 && klr.Count == 2, "RemoveAt(1) tercatat");
+        klr.DecrementAt(0);                                   // 1/2 habis, blok hilang
+        Check(klr.LastRemovedIndex == 0 && klr.Count == 1, "DecrementAt yang menghabiskan blok tercatat");
+        klr.Add(Fraction.Unit(4));
+        klr.MergeAt(0, Fraction.Unit(4));
+        Check(klr.LastRemovedIndex == -1, "MergeAt: tidak ada yang dihapus");
+
+        var klr2 = new KotakContents();
+        klr2.Add(new Fraction(2, 5)); klr2.Add(new Fraction(1, 3)); klr2.Add(new Fraction(1, 5));
+        klr2.TransferUnits(0, 2);
+        Check(klr2.LastRemovedIndex == 0 && klr2.Count == 2, "TransferUnits yang menghabiskan sumber: sumber tercatat");
+        klr2.Clear();
+        Check(klr2.LastRemovedIndex == -1, "Clear: tanpa reflow");
+
         // Stress overflow: LCM(1..25) > int.MaxValue
         Fraction h = Fraction.Zero;
         for (int den = 2; den <= 25; den++) h += Fraction.Unit(den);

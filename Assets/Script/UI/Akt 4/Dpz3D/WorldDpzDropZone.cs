@@ -4,25 +4,37 @@ public class WorldDpzDropZone : MonoBehaviour, IFractionDropZone
 {
     [SerializeField] DpzView dpzView;
     [SerializeField] Camera worldCamera;     // kosong = Camera.main (ARCamera saat aktif)
+    [SerializeField] string lostMessage = "Marker hilang. Arahkan kamera ke marker lagi.";
 
     Camera WorldCam => worldCamera ? worldCamera : Camera.main;
 
     void OnEnable() => DropZoneRegistry.Register(this);
     void OnDisable() => DropZoneRegistry.Unregister(this);
 
+    static bool OverHud(Vector2 p)
+    {
+        var drag = FractionDragController.Instance;
+        return drag != null && drag.IsOverHud(p);
+    }
+
     bool Cast(Vector2 screenPos, out DpzHit hit)
     {
         hit = default;
-        var drag = FractionDragController.Instance;
-        if (drag != null && drag.IsOverHud(screenPos)) return false;   // HUD selalu menang atas dunia
-        return dpzView.Raycast(screenPos, WorldCam, out hit);
+        if (OverHud(screenPos)) return false;                       // HUD selalu menang atas dunia
+        return dpzView.Raycast(screenPos, WorldCam, out hit);       // false juga kalau marker hilang
     }
 
-    public bool Contains(Vector2 p, Camera uiCam) => Cast(p, out _);
+    // Marker hilang: zona ini tetap mengklaim area dunia (di luar HUD) supaya lepas drag di sana ditolak dengan pesan
+    public bool Contains(Vector2 p, Camera uiCam)
+    {
+        if (OverHud(p)) return false;
+        if (!dpzView.Tracked) return true;
+        return Cast(p, out _);
+    }
 
     public void Hover(in DragPayload payload, Vector2 p, Camera uiCam, float dt)
     {
-        if (!Cast(p, out DpzHit hit)) { dpzView.ClearHover(); return; }
+        if (!dpzView.Tracked || !Cast(p, out DpzHit hit)) { dpzView.ClearHover(); return; }
 
         if (payload.origin == DragOrigin.Bank)
         {
@@ -44,6 +56,12 @@ public class WorldDpzDropZone : MonoBehaviour, IFractionDropZone
 
     public RejectReason Accept(in DragPayload payload, Vector2 p, Camera uiCam)
     {
+        if (!dpzView.Tracked)
+        {
+            Feedback.Show(lostMessage, FeedbackKind.Warning);       // drop di dunia saat marker hilang ditolak
+            return RejectReason.None;
+        }
+
         if (!Cast(p, out DpzHit hit)) return RejectReason.None;
 
         if (payload.origin == DragOrigin.Dpz)

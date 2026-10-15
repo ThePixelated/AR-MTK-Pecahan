@@ -8,9 +8,17 @@ public class KotakContents
     public int Count => pieces.Count;
     public bool IsEmpty => pieces.Count == 0;
 
+    // Index blok yang dihapus oleh perubahan terakhir, atau -1 (dipakai animasi reflow). Diisi sebelum Changed.
+    public int LastRemovedIndex { get; private set; } = -1;
+
     public event Action Changed;   // row UI dan balok 3D subscribe ke sini (view ikut data)
 
-    public void Add(Fraction piece) { pieces.Add(piece); Changed?.Invoke(); }
+    public void Add(Fraction piece)
+    {
+        pieces.Add(piece);
+        LastRemovedIndex = -1;
+        Changed?.Invoke();
+    }
 
     // Satu row/blok = maksimal satu utuh (d/d). Penyebut sama tapi sudah penuh = bukan merge, jadi blok baru.
     public bool CanMerge(int index, Fraction incoming)
@@ -26,6 +34,7 @@ public class KotakContents
         if (!CanMerge(index, incoming)) throw new InvalidOperationException("Tidak bisa merge: penyebut beda atau blok sudah penuh");
         Fraction p = pieces[index];
         pieces[index] = new Fraction(p.numerator + incoming.numerator, p.denominator);   // sengaja TIDAK di-reduce
+        LastRemovedIndex = -1;
         Changed?.Invoke();
     }
 
@@ -33,8 +42,8 @@ public class KotakContents
     public void DecrementAt(int index)
     {
         Fraction p = pieces[index];
-        if (p.numerator <= 1) pieces.RemoveAt(index);
-        else pieces[index] = new Fraction(p.numerator - 1, p.denominator);
+        if (p.numerator <= 1) { pieces.RemoveAt(index); LastRemovedIndex = index; }
+        else { pieces[index] = new Fraction(p.numerator - 1, p.denominator); LastRemovedIndex = -1; }
         Changed?.Invoke();
     }
 
@@ -62,15 +71,27 @@ public class KotakContents
         pieces[target] = new Fraction(t.numerator + moved, t.denominator);
 
         long left = s.numerator - moved;
-        if (left <= 0) pieces.RemoveAt(source);
-        else pieces[source] = new Fraction(left, s.denominator);
+        if (left <= 0) { pieces.RemoveAt(source); LastRemovedIndex = source; }
+        else { pieces[source] = new Fraction(left, s.denominator); LastRemovedIndex = -1; }
 
         Changed?.Invoke();
         return moved;
     }
 
-    public void RemoveAt(int index) { pieces.RemoveAt(index); Changed?.Invoke(); }
-    public void Clear() { if (pieces.Count == 0) return; pieces.Clear(); Changed?.Invoke(); }
+    public void RemoveAt(int index)
+    {
+        pieces.RemoveAt(index);
+        LastRemovedIndex = index;
+        Changed?.Invoke();
+    }
+
+    public void Clear()
+    {
+        if (pieces.Count == 0) return;
+        pieces.Clear();
+        LastRemovedIndex = -1;      // semua hilang sekaligus: tanpa reflow
+        Changed?.Invoke();
+    }
 
     public Fraction Total()
     {

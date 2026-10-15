@@ -45,6 +45,7 @@ public class DpzStyle : ScriptableObject
     public float baseLift = 0.001f;   // tinggi dasar balok dan garis lantai dari bidang dpz (di atas area visual)
 
     [Header("Baris area")]
+    public float reflowSpeed = 14f;            // kecepatan baris meluncur naik saat ada blok hilang; 0 = langsung loncat
     [Min(1)] public int minRows = 1;           // lantai ukuran area (baris)
     [Min(0)] public int minEmptyRows = 1;      // selalu sisakan sekian baris kosong setelah blok terakhir (dibatasi MaxDpzBlocks)
     public bool areaPredictsOnHover = false;   // true: area mengembang/menyusut sesuai prediksi blok baru saat hover
