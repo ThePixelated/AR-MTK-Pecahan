@@ -25,9 +25,19 @@ public class FractionDragController : MonoBehaviour
     Vector2 Aim => pointerPos + fingerOffset;   // zona dicek pakai posisi ghost, bukan jari
     Camera WorldCam => worldCamera ? worldCamera : Camera.main;
 
-    void Awake() => Instance = this;
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics() => Instance = null;
+
+    // Satu controller per halaman: yang aktif = Instance. Jangan di Awake, karena halaman lain bisa aktif belakangan.
+    void OnEnable() => Instance = this;
+
+    void OnDisable()
+    {
+        Cancel();
+        if (Instance == this) Instance = null;
+    }
+
     void OnDestroy() { if (Instance == this) Instance = null; }
-    void OnDisable() => Cancel();
 
     public bool IsOverHud(Vector2 screenPos) =>
         hudRect && RectTransformUtility.RectangleContainsScreenPoint(hudRect, screenPos, cam);
@@ -108,4 +118,8 @@ public class FractionDragController : MonoBehaviour
         if (heldGhost3D) heldGhost3D.Hide();
         IsDragging = false;
     }
+
+    [ContextMenu("Debug: Cetak status")]
+    void DebugStatus() =>
+        Debug.Log($"[Drag] {name} | aktif={isActiveAndEnabled} | Instance==ini: {Instance == this} | dragging={IsDragging}", this);
 }

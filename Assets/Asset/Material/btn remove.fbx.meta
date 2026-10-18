@@ -1,9 +1,14 @@
 fileFormatVersion: 2
-guid: bfd944ce02e17e04ea4a5ad144d21491
+guid: 764d8c3ef403fed41a5ba1573ffdd4f8
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: mat tong sampah
+    second: {fileID: 2100000, guid: 57cc11c7edf667642a59031deafb18b2, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

@@ -2,6 +2,7 @@ using System;
 using TMPro;
 using UnityEngine;
 
+// Controller halaman Media 4 (Add) dan Media 6 (Subtract). Satu instance per halaman.
 public class Activity4Controller : MonoBehaviour
 {
     [SerializeField] Operation operation = Operation.Add;    // Media 6: Subtract
@@ -11,6 +12,9 @@ public class Activity4Controller : MonoBehaviour
     [SerializeField] SimpleConfirmDialog confirmDialog;
     [SerializeField] TMP_Text commitLabel;                   // teks tombol +/- (AdditionBtn/Text (TMP))
 
+    [Header("Objek dunia milik aktivitas ini")]
+    [SerializeField] GameObject[] worldRoots;                // DpzRoot, area hapus, HeldGhost3D: aktif hanya selama halaman ini aktif (awalnya NONAKTIF di scene)
+
     FractionSession session;
     public FractionSession Session => session ??= new FractionSession(operation);   // lazy: tidak tergantung urutan Awake
     public FractionPalette Palette => palette;
@@ -19,6 +23,21 @@ public class Activity4Controller : MonoBehaviour
     {
         if (commitLabel) commitLabel.text = operation == Operation.Add ? "+" : "-";
         BuildBank();
+    }
+
+    // Objek dunia mengikuti halaman: tidak ada dua aktivitas yang berebut input
+    void OnEnable() => SetWorldRoots(true);
+
+    void OnDisable()
+    {
+        if (gameObject.scene.isLoaded) SetWorldRoots(false);
+    }
+
+    void SetWorldRoots(bool on)
+    {
+        if (worldRoots == null) return;
+        foreach (GameObject r in worldRoots)
+            if (r && r.activeSelf != on) r.SetActive(on);
     }
 
     void BuildBank()
@@ -40,7 +59,7 @@ public class Activity4Controller : MonoBehaviour
         else action();
     }
 
-    // onClick AdditionBtn
+    // onClick tombol +/-
     public void OnCommitPressed()
     {
         if (Session.CurrentPhase != Phase.Menyusun)
@@ -71,4 +90,15 @@ public class Activity4Controller : MonoBehaviour
 
     [ContextMenu("Debug: Log State")]
     void DebugLog() => Debug.Log($"{Session.CurrentPhase} | A={Session.A.Total().ToMixedString()} ({Session.A.Count} row) | B={Session.B.Total().ToMixedString()} ({Session.B.Count} row) | dpz={Session.Dpz.Count}");
+
+    [ContextMenu("Debug: Cetak status aktivitas")]
+    void DebugActivity()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"[Aktivitas] {name} | operasi={operation} | fase={Session.CurrentPhase} | Drag.Instance=");
+        sb.Append(FractionDragController.Instance ? FractionDragController.Instance.name : "null");
+        if (worldRoots != null)
+            foreach (GameObject r in worldRoots) sb.Append($" | {(r ? r.name : "(kosong)")}={(r && r.activeSelf)}");
+        Debug.Log(sb.ToString(), this);
+    }
 }
