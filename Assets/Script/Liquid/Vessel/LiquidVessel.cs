@@ -53,6 +53,7 @@ public class LiquidVessel : MonoBehaviour
     bool built;
     Vector3 slosh, sloshVel, lastPos, lastVel;
     bool hasLast;
+    bool scaleErrorLogged;
 
     GameObject scaleInnerGO, scaleOuterGO;
     MeshRenderer scaleInnerR, scaleOuterR;
@@ -99,6 +100,7 @@ public class LiquidVessel : MonoBehaviour
 
         float apothem = profile.segments >= 6 ? Mathf.Cos(Mathf.PI / profile.segments) : 1f;   // sisi datar mesh kaca lebih dekat ke sumbu
         radiusFactor = apothem * liquidInset;
+        glassApothem = apothem;
 
         liquidGO = new GameObject("Liquid");
         liquidGO.transform.SetParent(glass, false);
@@ -111,8 +113,12 @@ public class LiquidVessel : MonoBehaviour
         mpb = new MaterialPropertyBlock();
 
         BuildSlices();
-        glassApothem = apothem;
-        BuildScaleShells();
+        cachedFill = -1f;
+        hasLast = false;
+        built = true;     // cairan siap; jangan bergantung pada garis
+
+        try { BuildScaleShells(); }
+        catch (System.Exception e) { Debug.LogError($"[{name}] Garis penyebut gagal dibangun (cairan tetap jalan): {e}", this); }
     }
 
     void DestroyLiquid()
@@ -155,7 +161,12 @@ public class LiquidVessel : MonoBehaviour
     {
         if (!built) return;
 
-        UpdateScale();    // garis tetap tampil walau cairan kosong
+        try { UpdateScale(); }    // garis tetap tampil walau cairan kosong
+        catch (System.Exception e)
+        {
+            if (!scaleErrorLogged) { scaleErrorLogged = true; Debug.LogError($"[{name}] UpdateScale error: {e}", this); }
+        }
+
 
         float f = Mathf.Clamp01(fill);
         bool visible = f > 0.0005f;
@@ -260,5 +271,28 @@ public class LiquidVessel : MonoBehaviour
         sloshVel += (-sloshStiffness * slosh - sloshDamping * sloshVel + sloshGain * accH) * dt;
         slosh += sloshVel * dt;
         if (slosh.sqrMagnitude > sloshMax * sloshMax) slosh = slosh.normalized * sloshMax;
+    }
+
+    [ContextMenu("Debug: Cetak status cairan")]
+    void DebugStatus()
+    {
+        string liquidInfo = "TIDAK ADA", mp = "-", glassInfo = "-";
+        if (liquidRenderer)
+        {
+            var tmp = new MaterialPropertyBlock();
+            liquidRenderer.GetPropertyBlock(tmp);
+            liquidInfo = $"enabled={liquidRenderer.enabled}, shader={(liquidRenderer.sharedMaterial ? liquidRenderer.sharedMaterial.shader.name : "null")}";
+            mp = $"PlanePoint={tmp.GetVector(PlanePointId)} PlaneNormal={tmp.GetVector(PlaneNormalId)} Color={tmp.GetColor(ColorId)}";
+        }
+        if (glass)
+        {
+            var gr = glass.GetComponent<Renderer>();
+            if (gr && gr.sharedMaterial) glassInfo = $"{gr.sharedMaterial.name} / {gr.sharedMaterial.shader.name} / queue {gr.sharedMaterial.renderQueue}";
+        }
+
+        Debug.Log($"[Vessel] {name} | built={built} fill={fill:0.00} profilValid={profile.IsValid} posisiDunia={(glass ? glass.position.ToString() : "-")} | "
+                + $"cairan: {liquidInfo} | {mp} | garis: dalam={(scaleInnerR != null ? scaleInnerR.enabled.ToString() : "tidak ada")} "
+                + $"luar={(scaleOuterR != null ? scaleOuterR.enabled.ToString() : "tidak ada")} style={(style != null)} "
+                + $"scaleMat={(scaleMaterial != null)} liquidMat={(liquidMaterial != null)} | kaca: {glassInfo}", this);
     }
 }

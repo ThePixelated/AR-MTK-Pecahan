@@ -7956,7 +7956,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154aa9e03a92b6746923ca86da4ca5e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataPerSection
-  numberVal: {fileID: 814514430}
+  numberVal: {fileID: 0}
 --- !u!1 &145401549
 GameObject:
   m_ObjectHideFlags: 0
@@ -26336,7 +26336,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154aa9e03a92b6746923ca86da4ca5e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataPerSection
-  numberVal: {fileID: 2070419226}
+  numberVal: {fileID: 0}
 --- !u!114 &506856282
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -35284,13 +35284,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a469290f5255df244a72ae2c77d2b400, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NotificationView
-  animator: {fileID: 681012809}
+  animator: {fileID: 0}
   openIndex: 0
   closeIndex: 1
   holdSeconds: 2.2
-  background: {fileID: 681012810}
-  message: {fileID: 1008411163}
-  icon: {fileID: 1977951810}
+  background: {fileID: 0}
+  message: {fileID: 0}
+  icon: {fileID: 0}
   textColor:
     r: 0.15
     g: 0.15
@@ -35316,10 +35316,10 @@ MonoBehaviour:
     g: 0.74
     b: 0.74
     a: 1
-  infoIcon: {fileID: -1923374072, guid: b3030f7ab6297fe4388c063874a91c93, type: 3}
-  successIcon: {fileID: -1676501654, guid: b3030f7ab6297fe4388c063874a91c93, type: 3}
-  warningIcon: {fileID: -1970974126, guid: b3030f7ab6297fe4388c063874a91c93, type: 3}
-  errorIcon: {fileID: -1989652716, guid: b3030f7ab6297fe4388c063874a91c93, type: 3}
+  infoIcon: {fileID: 0}
+  successIcon: {fileID: 0}
+  warningIcon: {fileID: 0}
+  errorIcon: {fileID: 0}
 --- !u!1 &681395842
 GameObject:
   m_ObjectHideFlags: 0
@@ -36198,7 +36198,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154aa9e03a92b6746923ca86da4ca5e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataPerSection
-  numberVal: {fileID: 1521783887}
+  numberVal: {fileID: 0}
 --- !u!1001 &694698386
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -39617,7 +39617,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154aa9e03a92b6746923ca86da4ca5e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataPerSection
-  numberVal: {fileID: 1650613304}
+  numberVal: {fileID: 0}
 --- !u!1 &730428593
 GameObject:
   m_ObjectHideFlags: 0
@@ -59031,7 +59031,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154aa9e03a92b6746923ca86da4ca5e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataPerSection
-  numberVal: {fileID: 1645856496}
+  numberVal: {fileID: 0}
 --- !u!1 &1113326678
 GameObject:
   m_ObjectHideFlags: 0
@@ -62093,7 +62093,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154aa9e03a92b6746923ca86da4ca5e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataPerSection
-  numberVal: {fileID: 801415394}
+  numberVal: {fileID: 0}
 --- !u!1 &1165337562
 GameObject:
   m_ObjectHideFlags: 0
@@ -63083,12 +63083,12 @@ RectTransform:
   - {fileID: 1974922026}
   - {fileID: 304941303}
   - {fileID: 1437874833}
-  - {fileID: 623304485}
   - {fileID: 2079745501}
   - {fileID: 1738015817}
   - {fileID: 1652939062}
-  - {fileID: 1756367634}
   - {fileID: 769195727}
+  - {fileID: 623304485}
+  - {fileID: 1756367634}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -67467,7 +67467,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154aa9e03a92b6746923ca86da4ca5e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataPerSection
-  numberVal: {fileID: 378468865}
+  numberVal: {fileID: 0}
 --- !u!1001 &1266737413
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -93333,7 +93333,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1787913141
 Transform:
   m_ObjectHideFlags: 0
@@ -93427,13 +93427,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a469290f5255df244a72ae2c77d2b400, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NotificationView
-  animator: {fileID: 1790680805}
+  animator: {fileID: 0}
   openIndex: 0
   closeIndex: 1
   holdSeconds: 2.2
-  background: {fileID: 1790680806}
-  message: {fileID: 1857208918}
-  icon: {fileID: 798121790}
+  background: {fileID: 0}
+  message: {fileID: 0}
+  icon: {fileID: 0}
   textColor:
     r: 0.15
     g: 0.15
@@ -93459,10 +93459,10 @@ MonoBehaviour:
     g: 0.74
     b: 0.74
     a: 1
-  infoIcon: {fileID: -1923374072, guid: b3030f7ab6297fe4388c063874a91c93, type: 3}
-  successIcon: {fileID: -1676501654, guid: b3030f7ab6297fe4388c063874a91c93, type: 3}
-  warningIcon: {fileID: -1970974126, guid: b3030f7ab6297fe4388c063874a91c93, type: 3}
-  errorIcon: {fileID: -1989652716, guid: b3030f7ab6297fe4388c063874a91c93, type: 3}
+  infoIcon: {fileID: 0}
+  successIcon: {fileID: 0}
+  warningIcon: {fileID: 0}
+  errorIcon: {fileID: 0}
 --- !u!114 &1790680805
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -105764,7 +105764,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &2007627917
 Transform:
   m_ObjectHideFlags: 0
@@ -108077,7 +108077,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154aa9e03a92b6746923ca86da4ca5e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataPerSection
-  numberVal: {fileID: 1639856056}
+  numberVal: {fileID: 0}
 --- !u!114 &2045539450
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -109910,7 +109910,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 154aa9e03a92b6746923ca86da4ca5e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataPerSection
-  numberVal: {fileID: 818595264}
+  numberVal: {fileID: 0}
 --- !u!1 &2085042954
 GameObject:
   m_ObjectHideFlags: 0
@@ -113649,7 +113649,7 @@ MonoBehaviour:
   liquidMaterial: {fileID: 2100000, guid: c58ee20d27849534db2337ac1011f8be, type: 2}
   liquidInset: 0.994
   liquidSegments: 48
-  liquidColor: {r: 1, g: 0.82, b: 0.15, a: 1}
+  liquidColor: {r: 0.92, g: 0.97, b: 1, a: 1}
   fill: 0
   style: {fileID: 11400000, guid: fe19d945d41531b449de902a77a1cfd4, type: 2}
   scaleMaterial: {fileID: 2100000, guid: 1a708008bbba0524d815399880c8211e, type: 2}
@@ -113828,7 +113828,7 @@ MonoBehaviour:
   liquidMaterial: {fileID: 2100000, guid: c58ee20d27849534db2337ac1011f8be, type: 2}
   liquidInset: 0.994
   liquidSegments: 48
-  liquidColor: {r: 1, g: 0.82, b: 0.15, a: 1}
+  liquidColor: {r: 1, g: 0.78, b: 0.050000012, a: 1}
   fill: 0
   style: {fileID: 11400000, guid: fe19d945d41531b449de902a77a1cfd4, type: 2}
   scaleMaterial: {fileID: 2100000, guid: 1a708008bbba0524d815399880c8211e, type: 2}
@@ -113980,7 +113980,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!33 &1933894000069759720
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -114130,7 +114130,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!1 &4215162655893238517
 GameObject:
   m_ObjectHideFlags: 0
@@ -114308,7 +114308,7 @@ MonoBehaviour:
   liquidMaterial: {fileID: 2100000, guid: c58ee20d27849534db2337ac1011f8be, type: 2}
   liquidInset: 0.994
   liquidSegments: 48
-  liquidColor: {r: 1, g: 0.82, b: 0.15, a: 1}
+  liquidColor: {r: 0.92, g: 0.97, b: 1, a: 1}
   fill: 0
   style: {fileID: 11400000, guid: fe19d945d41531b449de902a77a1cfd4, type: 2}
   scaleMaterial: {fileID: 2100000, guid: 1a708008bbba0524d815399880c8211e, type: 2}
