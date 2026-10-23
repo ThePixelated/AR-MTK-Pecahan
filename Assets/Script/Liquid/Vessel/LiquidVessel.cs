@@ -77,6 +77,41 @@ public class LiquidVessel : MonoBehaviour
         ? glass.TransformDirection(new Vector3(profile.spoutDirXZ.x, 0f, profile.spoutDirXZ.y)).normalized
         : Vector3.zero;
 
+    // ---- dipakai tahap tuang ----
+    public bool LiquidVisible { get; private set; }
+    public Vector3 LiquidPlanePointWorld { get; private set; }
+    public Vector3 LiquidPlaneNormalWorld { get; private set; } = Vector3.up;
+    public Color LiquidColorNow => liquidColor;
+
+    public float DepthWorld => profile.Depth * glass.lossyScale.y;
+    public float RimRadiusWorld => profile.RadiusAt(profile.rimY) * glass.lossyScale.x;
+
+    // Titik bibir (lokal kaca) untuk menuang ke arah dirWorld (horizontal); pakai ujung cerat kalau ada
+    public Vector3 LipLocal(Vector3 dirWorld, bool useSpout)
+    {
+        if (useSpout && profile.hasSpout)
+        {
+            float tip = profile.outerRadius + profile.spoutReach;
+            return new Vector3(profile.axisXZ.x + profile.spoutDirXZ.x * tip, profile.rimY, profile.axisXZ.y + profile.spoutDirXZ.y * tip);
+        }
+        Vector3 d = glass.InverseTransformDirection(dirWorld);
+        d.y = 0f;
+        d = d.sqrMagnitude > 1e-8f ? d.normalized : Vector3.right;
+        float r = profile.RadiusAt(profile.rimY);
+        return new Vector3(profile.axisXZ.x + d.x * r, profile.rimY, profile.axisXZ.y + d.z * r);
+    }
+
+    // Titik di permukaan cairan tepat di bawah pusat bibir (atau pusat lantai kalau kosong)
+    public Vector3 LiquidSurfaceCenterWorld()
+    {
+        if (!LiquidVisible) return FloorCenterWorld;
+        float denom = Vector3.Dot(LiquidPlaneNormalWorld, Vector3.up);
+        if (Mathf.Abs(denom) < 1e-4f) return FloorCenterWorld;
+        Vector3 top = RimCenterWorld;
+        float t = Vector3.Dot(LiquidPlaneNormalWorld, LiquidPlanePointWorld - top) / denom;
+        return top + Vector3.up * t;
+    }
+
     public void SetGlass(Transform t) => glass = t;       // dipakai tool Auto-fit
 
     void OnEnable() => RebuildLiquid();
@@ -171,6 +206,7 @@ public class LiquidVessel : MonoBehaviour
         float f = Mathf.Clamp01(fill);
         bool visible = f > 0.0005f;
         if (liquidRenderer.enabled != visible) liquidRenderer.enabled = visible;
+        LiquidVisible = visible;
         if (!visible) return;
 
         UpdateSlosh();
@@ -191,6 +227,9 @@ public class LiquidVessel : MonoBehaviour
         mpb.SetColor(ColorId, liquidColor);
         mpb.SetVector(PlanePointId, glass.TransformPoint(pLocal));
         mpb.SetVector(PlaneNormalId, nWorld);
+
+        LiquidPlanePointWorld = glass.TransformPoint(pLocal);
+        LiquidPlaneNormalWorld = nWorld;
         liquidRenderer.SetPropertyBlock(mpb);
     }
 

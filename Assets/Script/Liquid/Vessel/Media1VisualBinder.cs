@@ -21,6 +21,20 @@ public class Media1VisualBinder : MonoBehaviour
     readonly List<LiquidContainer> containers = new List<LiquidContainer>();
     readonly List<LiquidVessel> vessels = new List<LiquidVessel>();
     readonly Dictionary<LiquidVessel, float> shown = new Dictionary<LiquidVessel, float>();
+    float pourWindowEnd = -1f;
+
+    public Media1Session Session => session;
+
+    // Selama jendela ini, level bergerak merata sampai tepat selesai di akhir durasi tuang
+    public void BeginPourWindow(float seconds) => pourWindowEnd = Time.time + seconds;
+
+    public bool TryGetContainer(LiquidVessel v, out LiquidContainer c)
+    {
+        for (int i = 0; i < vessels.Count; i++)
+            if (vessels[i] == v) { c = containers[i]; return true; }
+        c = null;
+        return false;
+    }
 
     void Start() { if (createTestSession) Bind(new Media1Session()); }
     void OnDestroy() => Unbind();
@@ -75,12 +89,16 @@ public class Media1VisualBinder : MonoBehaviour
 
     void Update()
     {
+        float remaining = pourWindowEnd - Time.time;
         for (int i = 0; i < vessels.Count; i++)
         {
             LiquidVessel v = vessels[i];
             if (!v) continue;
+
             shown.TryGetValue(v, out float cur);
-            cur = Mathf.MoveTowards(cur, containers[i].FillRatio, fillSpeed * Time.deltaTime);
+            float target = containers[i].FillRatio;
+            float speed = remaining > 0.02f ? Mathf.Abs(target - cur) / remaining : fillSpeed;
+            cur = Mathf.MoveTowards(cur, target, speed * Time.deltaTime);
             shown[v] = cur;
             v.Fill = cur;
         }
