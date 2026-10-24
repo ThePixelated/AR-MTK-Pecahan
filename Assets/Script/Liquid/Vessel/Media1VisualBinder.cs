@@ -83,7 +83,8 @@ public class Media1VisualBinder : MonoBehaviour
 
             bool isW = c == session.W;
             v.ConfigureScale(isW ? (int)Mathf.Max(1, c.CapacitySections) : p, isW ? p : 1);   // gelas: p bagian tiap 1; wadah: T bagian tiap p
-            if (style != null) v.LiquidColor = style.ColorFor(LiquidColorLevel.Level(c.Content, levels), levels);
+            if (style != null && !c.IsEmpty)    // wadah kosong mempertahankan warna terakhir sampai levelnya habis
+                v.LiquidColor = style.ColorFor(LiquidColorLevel.Level(c.Content, levels), levels);
         }
     }
 

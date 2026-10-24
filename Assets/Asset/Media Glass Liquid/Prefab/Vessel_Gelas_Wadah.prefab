@@ -152,10 +152,10 @@ MonoBehaviour:
   scaleInnerFactor: 0.9975
   scaleOuterFactor: 1.004
   sloshEnabled: 1
-  sloshStiffness: 2.5
+  sloshStiffness: 20
   sloshDamping: 1
-  sloshGain: 2
-  sloshMax: 1
+  sloshGain: 5
+  sloshMax: 0.5
 --- !u!114 &3566134602899690687
 MonoBehaviour:
   m_ObjectHideFlags: 0
