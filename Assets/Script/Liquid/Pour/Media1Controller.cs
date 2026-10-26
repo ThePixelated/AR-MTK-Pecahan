@@ -19,6 +19,13 @@ public class Media1Controller : MonoBehaviour
     [Header("Informasi larutan di wadah (opsional)")]
     [SerializeField] TMP_Text infoSyrup, infoWater, infoTotal;
 
+    [Header("Informasi Hasil (opsional)")]
+    [SerializeField] TMP_Text resultNumerator;     // Liquid1ValTxt
+    [SerializeField] TMP_Text resultDenominator;   // Liquid2ValTxt
+    [SerializeField] TMP_Text totalValueText;      // TotalLiquidValTxt
+    [SerializeField] TMP_Text compareSymbolText;   // TextSimbol
+    [SerializeField] TMP_Text compareLimitText;    // TextBatasNilai
+
     [Header("Objek dunia milik aktivitas ini")]
     [SerializeField] GameObject[] worldRoots;             // induk semua objek dunia Media 1 (awalnya NONAKTIF di scene)
 
@@ -113,6 +120,41 @@ public class Media1Controller : MonoBehaviour
         if (infoSyrup) infoSyrup.text = Sections(m.syrup);
         if (infoWater) infoWater.text = Sections(m.water);
         if (infoTotal) infoTotal.text = Sections(m.Total);
+
+        RefreshResult();
+    }
+
+    // Isi wadah dalam satuan gelas (total bagian / penyebut), dibandingkan dengan 1 gelas penuh
+    void RefreshResult()
+    {
+        if (session == null) return;
+
+        if (!session.IsConfigured)
+        {
+            SetResult("0", "-", "0", "<");
+            return;
+        }
+
+        int p = session.Config.Value.denominator;
+        Fraction t = session.W.Content.Total.Reduce();   // dalam bagian
+        long num = t.numerator, den = t.denominator * p;
+
+        long whole = num / den, rem = num % den;
+        string mixed = rem == 0 ? whole.ToString()
+                     : whole == 0 ? $"{rem}/{den}"
+                     : $"{whole} {rem}/{den}";
+        string symbol = num > den ? ">" : num < den ? "<" : "=";
+
+        SetResult(num.ToString(), den.ToString(), mixed, symbol);
+    }
+
+    void SetResult(string numerator, string denominator, string total, string symbol)
+    {
+        if (resultNumerator) resultNumerator.text = numerator;
+        if (resultDenominator) resultDenominator.text = denominator;
+        if (totalValueText) totalValueText.text = total;
+        if (compareSymbolText) compareSymbolText.text = symbol;
+        if (compareLimitText) compareLimitText.text = "1";
     }
 
     // 3 -> "3", 3/2 -> "1 1/2"

@@ -270,17 +270,22 @@ public class Media1PourController : MonoBehaviour
     IEnumerator ReturnRoutine(VesselActor actor, float duration)
     {
         Transform root = actor.transform;
-        Vector3 p0 = root.position, p1 = actor.HomePosition;
-        Quaternion r0 = root.rotation, r1 = actor.HomeRotation;
+        Vector3 p0 = root.localPosition, p1 = actor.HomePosition;
+        //Debug.LogWarning(actor.gameObject.name + ": " + p1);
+        Quaternion r0 = root.localRotation, r1 = actor.HomeRotation;
         if (duration <= 0f) duration = returnTime;
 
         for (float t = 0f; t < 1f; t += Time.deltaTime / duration)
         {
             float e = Mathf.SmoothStep(0f, 1f, t);
-            root.SetPositionAndRotation(Vector3.Lerp(p0, p1, e), Quaternion.Slerp(r0, r1, e));
+            root.localPosition = Vector3.Lerp(p0, p1, e);
+            root.localRotation = Quaternion.Slerp(r0, r1, e);
+
+            //root.SetPositionAndRotation(Vector3.Lerp(p0, p1, e), Quaternion.Slerp(r0, r1, e));
             yield return null;
         }
-        root.SetPositionAndRotation(p1, r1);
+        root.localPosition = p1;
+        root.localRotation = r1;
         mode = Mode.Idle;
     }
 

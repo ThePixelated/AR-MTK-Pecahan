@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 46378d2fe301fa043957a0218626a66a, type: 3}
   m_Name: Liquid Style
   m_EditorClassIdentifier: Assembly-CSharp::LiquidStyle
-  waterColor: {r: 0.92, g: 0.97, b: 1, a: 1}
+  waterColor: {r: 0.8726415, g: 0.95037985, b: 1, a: 1}
   dilutionGradient:
     serializedVersion: 2
-    key0: {r: 1, g: 0.95, b: 0.6, a: 1}
-    key1: {r: 1, g: 0.92538595, b: 0.5896226, a: 1}
-    key2: {r: 1, g: 0.8653684, b: 0.3820755, a: 1}
-    key3: {r: 1, g: 0.7832513, b: 0, a: 1}
-    key4: {r: 1, g: 0.72851026, b: 0, a: 1}
+    key0: {r: 0.9386792, g: 1, b: 0.98558825, a: 1}
+    key1: {r: 0.9103774, g: 1, b: 0.9814755, a: 1}
+    key2: {r: 0.990566, g: 0.9531788, b: 0.65881985, a: 1}
+    key3: {r: 0.990566, g: 0.83637416, b: 0.2756764, a: 1}
+    key4: {r: 1, g: 0.80729437, b: 0, a: 1}
     key5: {r: 0, g: 0, b: 0, a: 0}
     key6: {r: 0, g: 0, b: 0, a: 0}
     key7: {r: 0, g: 0, b: 0, a: 0}
@@ -39,7 +39,7 @@ MonoBehaviour:
     atime5: 0
     atime6: 0
     atime7: 0
-    m_Mode: 2
+    m_Mode: 1
     m_ColorSpace: -1
     m_NumColorKeys: 5
     m_NumAlphaKeys: 5

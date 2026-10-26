@@ -33,7 +33,6 @@ public class NotificationView : MonoBehaviour
         if (icon) icon.raycastTarget = false;
 
         Feedback.Raised += OnRaised;
-        isOpen = false;
         if (animator) animator.Trigger(closeIndex);   // pastikan tertutup tiap kali page aktif
     }
 
@@ -41,7 +40,6 @@ public class NotificationView : MonoBehaviour
     {
         Feedback.Raised -= OnRaised;
         hold = null;      // coroutine ikut berhenti saat nonaktif
-        isOpen = false;
     }
 
     void OnRaised(string text, FeedbackKind kind)
@@ -50,17 +48,18 @@ public class NotificationView : MonoBehaviour
 
         Apply(text, kind);
 
-        if (!isOpen) { isOpen = true; animator.Trigger(openIndex); }   // sedang terbuka: cukup ganti teks
+        // Selalu minta buka. Kalau sudah terbuka, tween berjalan dari posisi sekarang ke posisi buka
+        // yang sama (tidak terlihat). Kalau sedang menutup, penutupan dibatalkan dan bar naik lagi.
+        animator.Trigger(openIndex);
 
         if (hold != null) StopCoroutine(hold);
-        hold = StartCoroutine(HoldThenClose());                        // timer mulai ulang tiap pesan baru
+        hold = StartCoroutine(HoldThenClose());
     }
 
     IEnumerator HoldThenClose()
     {
         yield return new WaitForSecondsRealtime(holdSeconds);
         hold = null;
-        isOpen = false;
         animator.Trigger(closeIndex);
     }
 

@@ -19,9 +19,13 @@ public class VesselActor : MonoBehaviour
     void Awake()
     {
         if (!vessel) vessel = GetComponent<LiquidVessel>();
-        homePos = transform.position;
-        homeRot = transform.rotation;
+        homePos = transform.localPosition;
+        homeRot = transform.localRotation;
         if (targetIndicator) targetIndicator.SetActive(false);
+
+        //Debug.Log(gameObject.name + ": " + home.position);
+        //Debug.Log(gameObject.name + ": " + homePos);
+        //Debug.Log(gameObject.name + ": " + HomePosition);
     }
 
     // Dipanggil controller: kapsul pada rongga (ikut miring bersama kaca) di layer khusus untuk ray dan grab
