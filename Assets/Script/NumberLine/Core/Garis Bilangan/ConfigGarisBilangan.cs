@@ -33,8 +33,7 @@ public class ConfigGarisBilangan : MonoBehaviour
 
     private void OnEnable()
     {
-        Media25Manager.Instance.onPanjangGarisPressed += ValPanjangGarisChange;
-        Media25Manager.Instance.PartialUIStepper.Changed += ValPartialSatuan;
+        
     }
 
     private void OnDisable()
@@ -43,6 +42,13 @@ public class ConfigGarisBilangan : MonoBehaviour
         Media25Manager.Instance.PartialUIStepper.Changed -= ValPartialSatuan;
 
     }
+
+    private void Start()
+    {
+        Media25Manager.Instance.onPanjangGarisPressed += ValPanjangGarisChange;
+        Media25Manager.Instance.PartialUIStepper.Changed += ValPartialSatuan;
+    }
+
 
     private void Awake()
     {
