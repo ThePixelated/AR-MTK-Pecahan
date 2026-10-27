@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 
 // State dan aturan Media 1 (data murni). Satu instance dimiliki controller halaman Media 1.
-public sealed class Media1Session
+public sealed class Media1Session : IPourSession
 {
     public const long PourSections = 1;    // setiap swipe memindahkan tepat 1 bagian
 

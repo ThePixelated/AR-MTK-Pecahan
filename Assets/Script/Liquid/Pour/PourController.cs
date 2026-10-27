@@ -1,18 +1,21 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
-// Interaksi Media 1: grab gelas A/B atau wadah W, ray ke penerima, tuang 1 bagian dengan animasi, lalu kembali ke pivot asal.
-public class Media1PourController : MonoBehaviour
+// Interaksi tuang (dipakai Media 1 dan Media 3): grab gelas, ray ke penerima, tuang 1 bagian dengan animasi,
+// lalu kembali ke pivot asal. Letakkan di bawah World Root halaman yang bersangkutan.
+public class PourController : MonoBehaviour
 {
-    [SerializeField] Media1VisualBinder binder;
-    [SerializeField] VesselActor actorA, actorB, actorW;
-    [SerializeField] VesselActor[] finalCupActors;     // urutan sama dengan Final Cup Vessels di binder
+    [SerializeField] LiquidBinderBase binder;
+    [SerializeField] VesselActor[] movableActors;      // boleh digrab dan dituang (Media 1: A, B, W; Media 3: gelas sirup, gelas air)
+    [SerializeField] VesselActor[] fixedActors;        // hanya jadi penerima (Media 1: gelas akhir; Media 3: wadah)
     [SerializeField] WaterStream stream;
     [SerializeField] Camera worldCamera;               // kosong = Camera.main
     [SerializeField] LayerMask pourMask;               // SATU layer khusus (mis. "Pour")
+    [SerializeField] string notMovableMessage;         // kosong = pakai Media1Messages.NotMovable
 
     [Header("Gerak")]
     [SerializeField] float dragLift = 0.02f;           // meter: gelas terangkat saat di-drag
@@ -40,21 +43,25 @@ public class Media1PourController : MonoBehaviour
 
     Camera Cam => worldCamera ? worldCamera : Camera.main;
     int Layer => pourMask.value == 0 ? 0 : Mathf.RoundToInt(Mathf.Log(pourMask.value & -pourMask.value, 2f));
+    public bool IsBusy => mode != Mode.Idle;     // sedang di-drag atau tuangan masih berjalan
 
     IEnumerable<VesselActor> AllActors()
     {
-        yield return actorA; yield return actorB; yield return actorW;
-        if (finalCupActors != null) foreach (var a in finalCupActors) yield return a;
+        if (movableActors != null) foreach (var a in movableActors) yield return a;
+        if (fixedActors != null) foreach (var a in fixedActors) yield return a;
     }
+
+    bool IsMovable(VesselActor a) => movableActors != null && Array.IndexOf(movableActors, a) >= 0;
+    bool IsFixed(VesselActor a) => fixedActors != null && Array.IndexOf(fixedActors, a) >= 0;
 
     void OnEnable()
     {
-        if (binder == null || actorA == null || actorB == null || actorW == null || stream == null)
+        if (binder == null || stream == null || movableActors == null || movableActors.Length == 0)
         {
-            Debug.LogError($"[{name}] Media1PourController: Binder, Actor A/B/W, dan Stream harus diisi.", this);
+            Debug.LogError($"[{name}] PourController: Binder, Stream, dan minimal satu Movable Actor harus diisi.", this);
             return;
         }
-        if (pourMask.value == 0) Debug.LogWarning($"[{name}] Media1PourController: 'Pour Mask' kosong, ray tidak akan menemukan gelas.", this);
+        if (pourMask.value == 0) Debug.LogWarning($"[{name}] PourController: 'Pour Mask' kosong, ray tidak akan menemukan gelas.", this);
 
         foreach (VesselActor a in AllActors()) if (a) a.SetupCollider(Layer);
         mode = Mode.Idle;
@@ -62,7 +69,7 @@ public class Media1PourController : MonoBehaviour
 
     void Update()
     {
-        Media1Session session = binder ? binder.Session : null;
+        IPourSession session = binder ? binder.PourSession : null;
         Pointer ptr = Pointer.current;
         if (ptr == null || session == null || Cam == null) return;
 
@@ -96,11 +103,13 @@ public class Media1PourController : MonoBehaviour
         }
         if (best == null) return;
 
-        if (best != actorA && best != actorB && best != actorW)
+        if (IsFixed(best))
         {
-            Feedback.Show(Media1Messages.NotMovable, FeedbackKind.Info);     // gelas akhir
+            string msg = string.IsNullOrEmpty(notMovableMessage) ? Media1Messages.NotMovable : notMovableMessage;
+            Feedback.Show(msg, FeedbackKind.Info);
             return;
         }
+        if (!IsMovable(best)) return;      // bukan milik controller ini (halaman lain)
 
         dragged = best;
         dragPlane = new Plane(Vector3.up, bestPoint);
@@ -108,7 +117,7 @@ public class Media1PourController : MonoBehaviour
         mode = Mode.Dragging;
     }
 
-    void UpdateDrag(Vector2 pos, Media1Session session)
+    void UpdateDrag(Vector2 pos, IPourSession session)
     {
         Ray ray = Cam.ScreenPointToRay(pos);
         if (dragPlane.Raycast(ray, out float dist))
@@ -117,7 +126,7 @@ public class Media1PourController : MonoBehaviour
             dragged.transform.position = Vector3.Lerp(dragged.transform.position, desired, 1f - Mathf.Exp(-dragFollow * Time.deltaTime));
         }
 
-        // penerima terdekat di bawah jari (gelas yang di-drag diabaikan)
+        // penerima terdekat di bawah jari (gelas yang di-drag dan aktor halaman lain diabaikan)
         VesselActor found = null;
         float bestD = float.MaxValue;
         int n = Physics.RaycastNonAlloc(ray, hits, 10f, pourMask, QueryTriggerInteraction.Collide);
@@ -125,6 +134,7 @@ public class Media1PourController : MonoBehaviour
         {
             var actor = hits[i].collider.GetComponentInParent<VesselActor>();
             if (actor == null || actor == dragged || hits[i].distance >= bestD) continue;
+            if (!IsMovable(actor) && !IsFixed(actor)) continue;
             found = actor; bestD = hits[i].distance;
         }
 
@@ -135,14 +145,14 @@ public class Media1PourController : MonoBehaviour
         if (hoverActor) hoverActor.SetTargeted(err == PourError.None);
     }
 
-    PourError CheckPour(VesselActor from, VesselActor to, Media1Session session)
+    PourError CheckPour(VesselActor from, VesselActor to, IPourSession session)
     {
         if (!binder.TryGetContainer(from.Vessel, out LiquidContainer a) || !binder.TryGetContainer(to.Vessel, out LiquidContainer b))
             return PourError.NotConfigured;
         return session.CheckPour(a, b);
     }
 
-    void Release(Media1Session session)
+    void Release(IPourSession session)
     {
         VesselActor src = dragged, tgt = hoverActor;
         PourError err = hoverError;
@@ -168,7 +178,7 @@ public class Media1PourController : MonoBehaviour
     // ---------------- tuang ----------------
     static Vector3 Flat(Vector3 v) { v.y = 0f; return v; }
 
-    IEnumerator PourRoutine(VesselActor src, VesselActor tgt, Media1Session session)
+    IEnumerator PourRoutine(VesselActor src, VesselActor tgt, IPourSession session)
     {
         Transform root = src.transform;
         LiquidVessel sv = src.Vessel, tv = tgt.Vessel;
@@ -267,12 +277,12 @@ public class Media1PourController : MonoBehaviour
         yield return ReturnRoutine(src, returnTime);
     }
 
+    // Kembali ke pose asal dalam ruang lokal, supaya tetap benar walau Image Target bergerak
     IEnumerator ReturnRoutine(VesselActor actor, float duration)
     {
         Transform root = actor.transform;
-        Vector3 p0 = root.localPosition, p1 = actor.HomePosition;
-        //Debug.LogWarning(actor.gameObject.name + ": " + p1);
-        Quaternion r0 = root.localRotation, r1 = actor.HomeRotation;
+        Vector3 p0 = root.localPosition, p1 = actor.HomeLocalPosition;
+        Quaternion r0 = root.localRotation, r1 = actor.HomeLocalRotation;
         if (duration <= 0f) duration = returnTime;
 
         for (float t = 0f; t < 1f; t += Time.deltaTime / duration)
@@ -280,8 +290,6 @@ public class Media1PourController : MonoBehaviour
             float e = Mathf.SmoothStep(0f, 1f, t);
             root.localPosition = Vector3.Lerp(p0, p1, e);
             root.localRotation = Quaternion.Slerp(r0, r1, e);
-
-            //root.SetPositionAndRotation(Vector3.Lerp(p0, p1, e), Quaternion.Slerp(r0, r1, e));
             yield return null;
         }
         root.localPosition = p1;

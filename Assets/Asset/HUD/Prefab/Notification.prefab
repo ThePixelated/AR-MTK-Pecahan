@@ -276,7 +276,7 @@ MonoBehaviour:
     Target: {fileID: 8003283948715350365}
     OpenPivot: {fileID: 4634872197440104741}
     ClosePivot: {fileID: 3302094472055273651}
-    Duration: 0.7
+    Duration: 1
     Ease: 1
     Type: 1
     GoToNextIndex: -1
@@ -295,7 +295,7 @@ MonoBehaviour:
   animator: {fileID: 3753079179210824424}
   openIndex: 0
   closeIndex: 1
-  holdSeconds: 2.2
+  holdSeconds: 7
   background: {fileID: 6271282104080954133}
   message: {fileID: 7867160944960666872}
   icon: {fileID: 1598846504256235292}

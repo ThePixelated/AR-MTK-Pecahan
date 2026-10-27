@@ -14,6 +14,25 @@ public class LiquidStyle : ScriptableObject
     [Range(0.001f, 0.03f)] public float lineWidth = 0.006f;              // tebal garis, pecahan dari kedalaman rongga
     public bool topLine = false;                                         // garis tambahan di batas penuh
 
+    [Header("Warna kontinu (Media 3)")]
+    public Gradient concentrationGradient = DefaultConcentrationGradient();   // t = bagian sirup dari total: 0 = air bening, 1 = sirup murni
+
+    public Color ColorForRatio(float syrupRatio) => concentrationGradient.Evaluate(Mathf.Clamp01(syrupRatio));
+
+    static Gradient DefaultConcentrationGradient()
+    {
+        var g = new Gradient();
+        g.SetKeys(
+            new[]
+            {
+                new GradientColorKey(new Color(0.92f, 0.97f, 1f), 0f),
+                new GradientColorKey(new Color(1f, 0.95f, 0.6f), 0.12f),
+                new GradientColorKey(new Color(1f, 0.78f, 0.05f), 1f)
+            },
+            new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+        return g;
+    }
+
     public Color ColorFor(int level, int levels)
     {
         if (level <= 0 || levels <= 0) return waterColor;

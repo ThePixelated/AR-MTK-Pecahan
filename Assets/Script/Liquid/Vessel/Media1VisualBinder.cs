@@ -3,7 +3,7 @@ using UnityEngine;
 
 // Menghubungkan Media1Session (data) ke LiquidVessel (tampilan): level isi, warna per tingkat encer, garis penyebut.
 // Bagian "Uji" untuk mencoba tanpa UI; digantikan controller Media 1 di tahap 1d.
-public class Media1VisualBinder : MonoBehaviour
+public class Media1VisualBinder : LiquidBinderBase
 {
     [SerializeField] LiquidStyle style;
     [SerializeField] LiquidVessel vesselA, vesselB, vesselW;
@@ -24,11 +24,18 @@ public class Media1VisualBinder : MonoBehaviour
     float pourWindowEnd = -1f;
 
     public Media1Session Session => session;
+    public override IPourSession PourSession => session;
+
+    // 3) tambahkan override
+    //public override void BeginPourWindow(float seconds) => pourWindowEnd = Time.time + seconds;
+
+    // 4) tambahkan override
+    //public override bool TryGetContainer(LiquidVessel v, out LiquidContainer c)
 
     // Selama jendela ini, level bergerak merata sampai tepat selesai di akhir durasi tuang
-    public void BeginPourWindow(float seconds) => pourWindowEnd = Time.time + seconds;
+    public override void BeginPourWindow(float seconds) => pourWindowEnd = Time.time + seconds;
 
-    public bool TryGetContainer(LiquidVessel v, out LiquidContainer c)
+    public override bool TryGetContainer(LiquidVessel v, out LiquidContainer c)
     {
         for (int i = 0; i < vessels.Count; i++)
             if (vessels[i] == v) { c = containers[i]; return true; }

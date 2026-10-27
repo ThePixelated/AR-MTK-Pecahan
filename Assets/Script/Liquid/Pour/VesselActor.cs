@@ -5,27 +5,37 @@ using UnityEngine;
 public class VesselActor : MonoBehaviour
 {
     [SerializeField] LiquidVessel vessel;
-    [SerializeField] Transform home;                 // pivot asal; kosong = pose saat objek aktif pertama kali
+    [SerializeField] Transform home;                 // opsional: pivot asal; kosong = pose lokal saat Awake
     [SerializeField] GameObject targetIndicator;     // opsional: dinyalakan saat menjadi target tuang yang sah
 
-    Vector3 homePos;
-    Quaternion homeRot;
+    Vector3 homeLocalPos;
+    Quaternion homeLocalRot;
     Collider hitCollider;
 
     public LiquidVessel Vessel => vessel;
-    public Vector3 HomePosition => home ? home.position : homePos;
-    public Quaternion HomeRotation => home ? home.rotation : homeRot;
+
+    // Pose asal dalam ruang lokal parent (stabil walau Image Target bergerak)
+    public Vector3 HomeLocalPosition => home ? ToLocal(home.position) : homeLocalPos;
+    public Quaternion HomeLocalRotation => home ? ToLocal(home.rotation) : homeLocalRot;
+
+    Vector3 ToLocal(Vector3 world)
+    {
+        Transform p = transform.parent;
+        return p ? p.InverseTransformPoint(world) : world;
+    }
+
+    Quaternion ToLocal(Quaternion world)
+    {
+        Transform p = transform.parent;
+        return p ? Quaternion.Inverse(p.rotation) * world : world;
+    }
 
     void Awake()
     {
         if (!vessel) vessel = GetComponent<LiquidVessel>();
-        homePos = transform.localPosition;
-        homeRot = transform.localRotation;
+        homeLocalPos = transform.localPosition;
+        homeLocalRot = transform.localRotation;
         if (targetIndicator) targetIndicator.SetActive(false);
-
-        //Debug.Log(gameObject.name + ": " + home.position);
-        //Debug.Log(gameObject.name + ": " + homePos);
-        //Debug.Log(gameObject.name + ": " + HomePosition);
     }
 
     // Dipanggil controller: kapsul pada rongga (ikut miring bersama kaca) di layer khusus untuk ray dan grab
