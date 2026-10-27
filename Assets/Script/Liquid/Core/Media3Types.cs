@@ -27,6 +27,8 @@ public readonly struct Media3Entry
 {
     public readonly int syrupSections;
     public readonly int waterSections;
+    // Bagian sirup dari total sebagai float (0 = air bening, 1 = sirup murni); dipakai untuk warna
+    public float SyrupRatio => TotalSections == 0 ? 0f : (float)syrupSections / TotalSections;
 
     public Media3Entry(int syrupSections, int waterSections)
     {

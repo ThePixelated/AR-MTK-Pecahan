@@ -229,5 +229,9 @@ public class Media3SelfTest : MonoBehaviour
         Check(!a.Concentration.ValueEquals(c.Concentration), "3:5 dan 2:5 konsentrasi beda");
         Check(d.SameRatio(e) && !d.SamePair(e), "2:1 dan 8:4 senilai tapi bukan pasangan sama");
         Check(d.Concentration.ValueEquals(e.Concentration), "2:1 dan 8:4 warna sama");
+
+        Check(Mathf.Approximately(a.SyrupRatio, 0.375f), "3:5 = rasio sirup 0.375");
+        Check(Mathf.Approximately(new Media3Entry(0, 2).SyrupRatio, 0f), "air saja = rasio 0");
+        Check(Mathf.Approximately(new Media3Entry(2, 0).SyrupRatio, 1f), "sirup saja = rasio 1");
     }
 }

@@ -117,6 +117,7 @@ public class ConfigGarisBilangan : MonoBehaviour
 
         if (lineParent == null || wholeNumSlitPrefab == null || fractNumSlitPrefab == null || wholeNum <= 0 || fractNum <= 0)
             return;
+        
 
         // Pastikan ukuran RectTransform sudah diperbarui.
         Canvas.ForceUpdateCanvases();

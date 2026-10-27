@@ -5,6 +5,12 @@ public static class Media3Messages
     public const string AllReset = "Semua percobaan sudah dihapus.";
     public const string NothingToReset = "Belum ada yang perlu diatur ulang.";
     public const string PourBusy = "Tunggu sampai tuangan selesai ya.";
+    public const string EnterCompare = "Masuk mode perbandingan.";
+    public const string EnterCompareEmpty = "Masuk mode perbandingan. Belum ada percobaan yang bisa dibandingkan.";
+    public const string EnterEntry = "Masuk mode entri.";
+    public const string InputInCompareMode = "Kembali ke mode entri dulu untuk menambah percobaan.";
+
+    public static string EntryRemoved(int number) => $"Percobaan {number} dihapus.";
 
     public static string EntryAdded(int number, Media3Entry e, bool nowFull)
     {

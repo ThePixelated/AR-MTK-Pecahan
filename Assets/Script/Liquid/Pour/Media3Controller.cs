@@ -18,6 +18,16 @@ public class Media3Controller : MonoBehaviour
     [SerializeField] TMP_Text infoSyrup;                     // sirup yang sudah di wadah
     [SerializeField] TMP_Text infoWater;                     // air yang sudah di wadah
     [SerializeField] TMP_Text trialCounter;                  // "2/4"
+    [SerializeField] TrialListView trialList;                // daftar percobaan (opsional)
+
+    [Header("Mode perbandingan")]
+    [SerializeField] TrialGridView trialGrid;
+    [SerializeField] GameObject[] entryModeObjects;       // hanya tampil di mode entri (gelas dan wadah kerja, panel Atur Campuran, tombol Input)
+    [SerializeField] GameObject[] compareModeObjects;     // hanya tampil di mode perbandingan (CompareRoot)
+    [SerializeField] TMP_Text compareButtonLabel;         // opsional: teks tombol berganti sesuai mode
+    [SerializeField] string labelToCompare = "PERBANDINGAN";
+    [SerializeField] string labelToEntry = "MODE ENTRI";
+
 
     [Header("Objek dunia milik aktivitas ini")]
     [SerializeField] GameObject[] worldRoots;                // induk semua objek dunia Media 3 (awalnya NONAKTIF di scene)
@@ -26,6 +36,8 @@ public class Media3Controller : MonoBehaviour
     public Media3Session Session => session ??= new Media3Session(limits);
 
     bool suppress;      // true saat stepper diubah dari kode, supaya tidak dianggap input pengguna
+    bool compareMode;
+
 
     void OnEnable()
     {
@@ -38,6 +50,8 @@ public class Media3Controller : MonoBehaviour
         SetWorldRoots(true);
         binder.Bind(Session);
         Session.Changed += RefreshInfo;
+        if (trialList) trialList.Bind(Session);
+        if (trialGrid) trialGrid.Bind(Session);
 
         syrupStepper.SetRange(limits.MinPerCup, limits.MaxPerCup);
         waterStepper.SetRange(limits.MinPerCup, limits.MaxPerCup);
@@ -47,6 +61,9 @@ public class Media3Controller : MonoBehaviour
         if (Session.IsConfigured) ShowConfigOnSteppers();      // kembali ke halaman ini: stepper mengikuti keadaan terakhir
         else Apply(syrupStepper.Value, waterStepper.Value);    // pertama kali: gelas langsung terisi sesuai stepper
         RefreshInfo();
+
+        compareMode = false;       // selalu mulai di mode entri saat halaman dibuka
+        ApplyMode();
     }
 
     void OnDisable()
@@ -54,6 +71,8 @@ public class Media3Controller : MonoBehaviour
         if (syrupStepper) syrupStepper.Changed -= OnStepperChanged;
         if (waterStepper) waterStepper.Changed -= OnStepperChanged;
         if (session != null) session.Changed -= RefreshInfo;
+        if (trialList) trialList.Unbind();
+        if (trialGrid) trialGrid.Unbind();
         if (gameObject.scene.isLoaded) SetWorldRoots(false);
     }
 
@@ -142,6 +161,38 @@ public class Media3Controller : MonoBehaviour
     {
         Session.ResetAll();      // entri dihapus, gelas diisi ulang sesuai konfigurasi aktif, wadah kosong
         Feedback.Show(Media3Messages.AllReset, FeedbackKind.Success);
+    }
+
+    // onClick tombol Perbandingan (toggle)
+    public void OnComparePressed()
+    {
+        if (pourController != null && pourController.IsBusy)
+        {
+            Feedback.Show(Media3Messages.PourBusy, FeedbackKind.Info);
+            return;
+        }
+
+        compareMode = !compareMode;
+        ApplyMode();
+
+        string msg = !compareMode ? Media3Messages.EnterEntry
+                   : Session.Entries.Count == 0 ? Media3Messages.EnterCompareEmpty
+                   : Media3Messages.EnterCompare;
+        Feedback.Show(msg, FeedbackKind.Info);
+    }
+
+    void ApplyMode()
+    {
+        SetAll(entryModeObjects, !compareMode);
+        SetAll(compareModeObjects, compareMode);
+        if (compareButtonLabel) compareButtonLabel.text = compareMode ? labelToEntry : labelToCompare;
+    }
+
+    static void SetAll(GameObject[] objects, bool on)
+    {
+        if (objects == null) return;
+        foreach (GameObject o in objects)
+            if (o && o.activeSelf != on) o.SetActive(on);
     }
 
     // ---------------- informasi ----------------
