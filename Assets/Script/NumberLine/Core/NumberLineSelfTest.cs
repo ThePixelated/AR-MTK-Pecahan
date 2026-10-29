@@ -16,6 +16,7 @@ public class NumberLineSelfTest : MonoBehaviour
         TestSessionConfigAndPion();
         TestCheckAndCommit();
         TestReset();
+        TestLabelsAndMixed();
 
         string summary = $"NumberLine tests: {pass} lulus, {fail} gagal";
         if (fail == 0) Debug.Log(summary); else Debug.LogError(summary);
@@ -303,5 +304,29 @@ public class NumberLineSelfTest : MonoBehaviour
         Check(changes >= 1, "reset memicu Changed");
         Check(!s.NeedsConfirmBeforeReconfigure, "setelah reset tidak perlu konfirmasi");
         Check(s.IsPristine, "sesi lama setelah reset: keadaan awal");
+    }
+
+    void TestLabelsAndMixed()
+    {
+        var c = new NumberLineConfig(2, 5);
+        int w, n;
+
+        c.TickToMixed(8, out w, out n);
+        Check(w == 1 && n == 3, "tick 8 (partisi 5) = 1 3/5");
+        c.TickToMixed(3, out w, out n);
+        Check(w == 0 && n == 3, "tick 3 = 0 3/5");
+        c.TickToMixed(5, out w, out n);
+        Check(w == 1 && n == 0, "tick 5 = 1 tepat");
+        c.TickToMixed(10, out w, out n);
+        Check(w == 2 && n == 0, "tick 10 = 2 tepat");
+        c.TickToMixed(0, out w, out n);
+        Check(w == 0 && n == 0, "tick 0 = 0");
+
+        Check(NumberLineLabels.Letter(0) == "A", "indeks 0 = A");
+        Check(NumberLineLabels.Letter(1) == "B", "indeks 1 = B");
+        Check(NumberLineLabels.Letter(25) == "Z", "indeks 25 = Z");
+        Check(NumberLineLabels.Letter(26) == "AA", "indeks 26 = AA");
+        Check(NumberLineLabels.Letter(27) == "AB", "indeks 27 = AB");
+        Check(NumberLineLabels.Letter(-1) == "?", "indeks negatif = ?");
     }
 }

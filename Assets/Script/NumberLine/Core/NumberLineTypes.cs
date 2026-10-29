@@ -44,6 +44,13 @@ public readonly struct NumberLineConfig
     // 0 = ujung kiri, 1 = ujung kanan
     public float TickToNormalized(int tick) => MaxTick == 0 ? 0f : (float)tick / MaxTick;
 
+    // Tick sebagai bilangan campuran dengan penyebut = partisi: tick 8 pada partisi 5 = 1 3/5
+    public void TickToMixed(int tick, out int whole, out int numerator)
+    {
+        whole = tick / partisi;
+        numerator = tick % partisi;
+    }
+
     // Posisi 0..1 sepanjang garis menjadi tick terdekat (di luar rentang dibatasi ke ujung)
     public int NearestTick(float normalized)
     {
@@ -66,5 +73,23 @@ public readonly struct NumberLineConfig
 
         tick = (int)(scaled / d);
         return NumberLineReach.OnLine;
+    }
+}
+
+public static class NumberLineLabels
+{
+    // 0 -> A, 1 -> B, ..., 25 -> Z, 26 -> AA, 27 -> AB
+    public static string Letter(int index)
+    {
+        if (index < 0) return "?";
+        string s = "";
+        index++;
+        while (index > 0)
+        {
+            index--;
+            s = (char)('A' + index % 26) + s;
+            index /= 26;
+        }
+        return s;
     }
 }

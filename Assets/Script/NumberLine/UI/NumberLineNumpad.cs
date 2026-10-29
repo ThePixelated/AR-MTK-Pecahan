@@ -1,14 +1,24 @@
 using System;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 // Numpad (prefab): 0-9, backspace, enter. Mengisi satu kotak dari satu NumberLineSoalInput; tidak tahu panel atau session.
+// Tidak pernah memanggil SetActive: buka/tutup secara visual lewat UnityEvent (mis. PanelAnimator).
 public class NumberLineNumpad : MonoBehaviour
 {
-    [SerializeField] GameObject root;              // kosong = objek ini sendiri
     [SerializeField] Button[] digitButtons;        // indeks = angka (0..9)
     [SerializeField] Button backspaceButton;
-    [SerializeField] Button enterButton;
+    [SerializeField] Button enterButton;           // mengunci nilai lalu menutup; jangan disambung manual ke animasi
+    [SerializeField] Button[] closeButtons;        // Begone, BottomPadBtn: menutup tanpa Enter (hanya status, tanpa SetActive)
+
+    [Header("Transisi: sambungkan ke PanelAnimator")]
+    [SerializeField] UnityEvent onOpened;          // numpad dibuka: jalankan animasi buka
+    [SerializeField] UnityEvent onClosed;          // numpad ditutup (Enter, Begone, BottomPad, CEK, Reset): jalankan animasi tutup
+    [SerializeField] UnityEvent onClosedImmediate; // ditutup karena halaman ditinggalkan: langsung ke pose tertutup tanpa transisi
+
+    [Header("Perilaku")]
+    [SerializeField] bool visibleWhenPageGone;     // true = tetap terbuka saat halaman ditinggalkan lalu dikunjungi lagi
 
     NumberLineSoalInput target;
     NumberLineCell cell;
@@ -16,10 +26,10 @@ public class NumberLineNumpad : MonoBehaviour
 
     public event Action<int> Overflowed;           // angka melebihi batas; argumen = batas
     public event Action Entered;                   // Enter ditekan (numpad lalu ditutup)
-    public event Action Closed;
+    public event Action Closed;                    // setiap penutupan, apa pun sebabnya
 
-    GameObject Root => root != null ? root : gameObject;
-    public bool IsOpen => Root.activeSelf;
+    public bool IsOpen { get; private set; }
+    public NumberLineCell FocusedCell => cell;
 
     void Awake() => Wire();
 
@@ -35,22 +45,40 @@ public class NumberLineNumpad : MonoBehaviour
         }
         if (backspaceButton) backspaceButton.onClick.AddListener(OnBackspace);
         if (enterButton) enterButton.onClick.AddListener(OnEnter);
+
+        if (closeButtons != null)
+            foreach (Button b in closeButtons)
+                if (b) b.onClick.AddListener(Close);
     }
 
-    // Buka (atau pindahkan fokus) ke satu kotak
+    // Buka, atau pindahkan fokus ke kotak lain kalau sudah terbuka (onOpened hanya dikirim saat baru dibuka)
     public void Open(NumberLineSoalInput input, NumberLineCell targetCell)
     {
         Wire();
         target = input;
         cell = targetCell;
-        if (!Root.activeSelf) Root.SetActive(true);
+
+        if (IsOpen) return;
+        IsOpen = true;
+        onOpened?.Invoke();
     }
 
     public void Close()
     {
-        if (!Root.activeSelf) return;
+        if (!IsOpen) return;
+        IsOpen = false;
         target = null;
-        Root.SetActive(false);
+        onClosed?.Invoke();
+        Closed?.Invoke();
+    }
+
+    // Dipanggil controller saat halaman ditinggalkan: menutup langsung tanpa transisi, kecuali visibleWhenPageGone
+    public void PageGone()
+    {
+        if (!IsOpen || visibleWhenPageGone) return;
+        IsOpen = false;
+        target = null;
+        onClosedImmediate?.Invoke();
         Closed?.Invoke();
     }
 
@@ -64,6 +92,7 @@ public class NumberLineNumpad : MonoBehaviour
 
     void OnEnter()
     {
+        if (!IsOpen) return;
         Entered?.Invoke();
         Close();
     }

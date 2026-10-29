@@ -8,6 +8,7 @@ public class Media2ExploreController : MonoBehaviour
     [SerializeField] NumberLineView view;
     [SerializeField] LineSettingsPanel lineSettings;
     [SerializeField] NumberLineSoalPanel soalPanel;
+    [SerializeField] NumberLineSoalPanel resultPanel;      // panel hasil (readOnly); opsional
     [SerializeField] NumberLineNumpad numpad;
     [SerializeField] SimpleConfirmDialog confirmDialog;
 
@@ -41,6 +42,8 @@ public class Media2ExploreController : MonoBehaviour
 
         Session.Changed += Sync;
         Sync();
+
+        if (numpad.IsOpen) soalPanel.SetFocusedCell(numpad.FocusedCell);    // visibleWhenPageGone: numpad masih terbuka
     }
 
     void OnDisable()
@@ -48,7 +51,7 @@ public class Media2ExploreController : MonoBehaviour
         if (!wired) return;
         wired = false;
 
-        if (numpad) numpad.Close();        // sebelum berhenti mendengarkan, supaya fokus kotak ikut dibersihkan
+        if (numpad) numpad.PageGone();     // sebelum berhenti mendengarkan, supaya fokus kotak ikut dibersihkan
 
         if (lineSettings)
         {
@@ -76,6 +79,7 @@ public class Media2ExploreController : MonoBehaviour
         view.SetConfig(Session.Config);
         view.SetPionTick(Session.PionTick);
         lineSettings.Show(Session.Config);
+        if (resultPanel) resultPanel.ShowEmptyResult();     // hasil lama tidak berlaku lagi setelah ada perubahan apa pun
     }
 
     // ---------------- atur garis ----------------
@@ -142,6 +146,12 @@ public class Media2ExploreController : MonoBehaviour
         switch (r.outcome)
         {
             case NumberLineCheckOutcome.Correct:
+                if (resultPanel)
+                {
+                    // bentuk hasil mengikuti posisi pion: tick 8 pada partisi 5 = 1 3/5
+                    Session.Config.TickToMixed(Session.PionTick, out int whole, out int numerator);
+                    resultPanel.ShowResult(whole, numerator, Session.Config.partisi);
+                }
                 Feedback.Show(NumberLineMessages.CheckCorrect, FeedbackKind.Success);
                 break;
             case NumberLineCheckOutcome.Wrong:
