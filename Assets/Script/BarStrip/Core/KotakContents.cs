@@ -93,10 +93,74 @@ public class KotakContents
         Changed?.Invoke();
     }
 
+    // ---- aturan Kotak: satu jenis bilangan bulat dan satu jenis pecahan ----
+    // Jumlah row bilangan bulat (penyebut 1)
+    public int WholeBlockCount
+    {
+        get
+        {
+            int n = 0;
+            foreach (var p in pieces) if (p.denominator == 1) n++;
+            return n;
+        }
+    }
+
+    // Jumlah row pecahan (penyebut > 1), termasuk row penuh seperti 2/2
+    public int FractionRowCount
+    {
+        get
+        {
+            int n = 0;
+            foreach (var p in pieces) if (p.denominator != 1) n++;
+            return n;
+        }
+    }
+
+    // Penyebut dari satu-satunya jenis pecahan di Kotak ini; false kalau belum ada row pecahan
+    public bool TryGetFractionKind(out long denominator)
+    {
+        foreach (var p in pieces)
+        {
+            if (p.denominator == 1) continue;
+            denominator = p.denominator;
+            return true;
+        }
+        denominator = 0;
+        return false;
+    }
+
+    // Row penuh (n/n, termasuk bilangan bulat) berperilaku sebagai satu bilangan bulat
+    public int FullRowCount
+    {
+        get
+        {
+            int n = 0;
+            foreach (var p in pieces) if (p.numerator == p.denominator) n++;
+            return n;
+        }
+    }
+
+    // Jumlah row yang belum penuh: bagian pecahan yang harus dijumlahkan
+    public Fraction PartialTotal()
+    {
+        Fraction sum = Fraction.Zero;
+        foreach (var p in pieces) if (p.numerator != p.denominator) sum += p;
+        return sum;
+    }
+
     public Fraction Total()
     {
         Fraction sum = Fraction.Zero;
         foreach (var p in pieces) sum += p;
         return sum;
+    }
+
+    // Sisipkan row di posisi tertentu (dipakai mengembalikan balok dari area ke urutan aslinya); di luar jangkauan = ditaruh paling bawah
+    public void InsertAt(int index, Fraction piece)
+    {
+        index = Math.Max(0, Math.Min(index, pieces.Count));
+        pieces.Insert(index, piece);
+        LastRemovedIndex = -1;
+        Changed?.Invoke();
     }
 }

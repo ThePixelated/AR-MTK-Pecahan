@@ -10,13 +10,14 @@ public class Activity4Controller : MonoBehaviour
     [SerializeField] Transform bankContent;
     [SerializeField] FractionBankItem bankItemPrefab;
     [SerializeField] SimpleConfirmDialog confirmDialog;
+    [SerializeField] SessionOptions options = new SessionOptions();    // pindah atau salin balok dari Kotak, dan cek bilangan bulat
     [SerializeField] TMP_Text commitLabel;                   // teks tombol +/- (AdditionBtn/Text (TMP))
 
     [Header("Objek dunia milik aktivitas ini")]
     [SerializeField] GameObject[] worldRoots;                // DpzRoot, area hapus, HeldGhost3D: aktif hanya selama halaman ini aktif (awalnya NONAKTIF di scene)
 
     FractionSession session;
-    public FractionSession Session => session ??= new FractionSession(operation);   // lazy: tidak tergantung urutan Awake
+    public FractionSession Session => session ??= new FractionSession(operation, options);   // lazy: tidak tergantung urutan Awake
     public FractionPalette Palette => palette;
 
     void Awake()

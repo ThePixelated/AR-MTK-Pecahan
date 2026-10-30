@@ -47,6 +47,13 @@ public static class Messages
         RejectReason.KotakTerlaluBesar => "Kotak ini sudah penuh, kurangi dulu.",
         RejectReason.HasilTerlaluBesar => "Hasilnya terlalu besar, coba pecahan yang lebih kecil.",
         RejectReason.DpzPenuh => "Area susun sudah penuh.",
+        RejectReason.KotakBulatPenuh => "Bilangan bulat maksimal 4.",
+        RejectReason.KotakPecahanBeda => "Kotak ini hanya boleh satu jenis pecahan.",
+        RejectReason.KotakPecahanPenuh => "Baris pecahan di kotak ini sudah penuh.",
+        RejectReason.KotakTerkunci => "Kembalikan dulu balok dari area ke kotak ini.",
+        RejectReason.LowerHanyaPecahan => "Balok sisa harus pecahan, bukan bilangan bulat.",
+        RejectReason.LowerSatuanBeda => "Balok sisa harus satu jenis pecahan.",
+        RejectReason.BlokSudahDiArea => "Balok ini sudah ada di area.",
         _ => ""
     };
 
@@ -56,6 +63,7 @@ public static class Messages
         CheckVerdict.Kurang => "Masih kurang, coba tambah balok.",
         CheckVerdict.Kelebihan => "Kelebihan, coba kurangi balok.",
         CheckVerdict.NilaiPasSatuanBeda => "Nilainya sudah pas! Samakan dulu satuan pecahannya ya.",
+        CheckVerdict.UtuhBelumSesuai => "Sisanya sudah pas! Cek lagi bilangan bulatnya.",
         _ => ""
     };
 }

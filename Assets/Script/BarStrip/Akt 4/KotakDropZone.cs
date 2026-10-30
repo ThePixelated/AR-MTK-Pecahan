@@ -90,13 +90,25 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
         }
     }
 
-    void OnRowDeleteRequested(int index) =>
+    void OnRowDeleteRequested(int index)
+    {
+        if (session.IsKotakLocked(isKotakA))
+        {
+            Feedback.Show(Messages.For(RejectReason.KotakTerkunci), FeedbackKind.Warning);
+            return;
+        }
         controller.ConfirmOrRun(session.KotakEditClearsDpz, ChangeKotakWarning,
             () => session.RemoveFromKotak(isKotakA, index));
+    }
 
     public void OnResetPressed()    // onClick ResetBtn milik Kotak ini
     {
         if (!bound || contents.IsEmpty) return;
+        if (session.IsKotakLocked(isKotakA))
+        {
+            Feedback.Show(Messages.For(RejectReason.KotakTerkunci), FeedbackKind.Warning);
+            return;
+        }
         controller.ConfirmOrRun(session.KotakEditClearsDpz, ChangeKotakWarning,
             () => session.ClearKotak(isKotakA));
     }
@@ -107,10 +119,9 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
     public void Hover(in DragPayload payload, Vector2 p, Camera cam, float dt)
     {
         if (payload.origin != DragOrigin.Bank) { HoverExit(); return; }   // blok dpz yang diangkat tidak memicu highlight Kotak
-        
-        int idx = RowAt(p, cam);
-        int target = (idx >= 0 && contents.CanMerge(idx, payload.piece)) ? idx : -1;   // row penuh atau penyebut beda: tanpa highlight
 
+        // merge otomatis: yang menyala selalu row yang akan menerima, di mana pun jari di atas Kotak ini
+        int target = session.FindKotakMergeTarget(isKotakA, payload.piece);
         if (target != hoverRow)
         {
             SetHighlight(hoverRow, false);
@@ -127,26 +138,25 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
         if (payload.origin != DragOrigin.Bank) return RejectReason.None;   // asal lain diurus di step 5
 
         Fraction piece = payload.piece;      // salin dulu: parameter `in` tidak boleh dipakai di lambda
-        int rowIndex = RowAt(p, cam);        // -1 = bukan di atas row manapun
 
         RejectReason why = session.PreviewDropToKotak(isKotakA, piece);
         if (why != RejectReason.None) return why;
 
         controller.ConfirmOrRun(session.KotakEditClearsDpz, ChangeKotakWarning,
-            () => session.TryDropToKotak(isKotakA, piece, rowIndex));
+            () => session.TryDropToKotak(isKotakA, piece));
         return RejectReason.None;
     }
 
     // ---------- helper ----------
-    int RowAt(Vector2 p, Camera cam)
-    {
-        RectTransform vp = scroll.viewport != null ? scroll.viewport : (RectTransform)scroll.transform;
-        if (!RectTransformUtility.RectangleContainsScreenPoint(vp, p, cam)) return -1;
+    //int RowAt(Vector2 p, Camera cam)
+    //{
+    //    RectTransform vp = scroll.viewport != null ? scroll.viewport : (RectTransform)scroll.transform;
+    //    if (!RectTransformUtility.RectangleContainsScreenPoint(vp, p, cam)) return -1;
 
-        for (int i = 0; i < rows.Count; i++)
-            if (rows[i] && rows[i].ContainsScreenPoint(p, cam)) return i;
-        return -1;
-    }
+    //    for (int i = 0; i < rows.Count; i++)
+    //        if (rows[i] && rows[i].ContainsScreenPoint(p, cam)) return i;
+    //    return -1;
+    //}
 
     void SetHighlight(int i, bool on) { if (i >= 0 && i < rows.Count && rows[i]) rows[i].SetMergeHighlight(on); }
 

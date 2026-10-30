@@ -71,6 +71,7 @@ public class NotificationView : MonoBehaviour
             case FeedbackKind.Success: bg = successColor; sp = successIcon; break;
             case FeedbackKind.Warning: bg = warningColor; sp = warningIcon; break;
             case FeedbackKind.Error: bg = errorColor; sp = errorIcon; break;
+
             default: bg = infoColor; sp = infoIcon; break;
         }
 
