@@ -78,7 +78,7 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
             if (!rows[i]) rows[i] = Instantiate(rowPrefab, content);   // masuk list SEBELUM Setup
 
             if (rows[i].transform.GetSiblingIndex() != i) rows[i].transform.SetSiblingIndex(i);
-            rows[i].Setup(contents.Pieces[i], i, controller.Palette, OnRowDeleteRequested);
+            rows[i].Setup(contents.Pieces[i], i, controller.Palette, OnRowDeleteRequested, isKotakA, OnRowLiftRequested);
         }
 
         bool appended = contents.Count > lastCount;
@@ -88,6 +88,17 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
             LayoutRebuilder.ForceRebuildLayoutImmediate(content);
             scroll.verticalNormalizedPosition = 0f;        // tampilkan row terbaru (paling bawah)
         }
+    }
+
+    // Row diangkat ke area: alasan penolakan (soal belum dibentuk, sudah ada di area, area penuh) ditampilkan di sini
+    bool OnRowLiftRequested(int index)
+    {
+        RejectReason why = session.PreviewMoveToArea(isKotakA, index);
+        if (why == RejectReason.None) return true;
+
+        string msg = Messages.For(why);
+        if (!string.IsNullOrEmpty(msg)) Feedback.Show(msg, FeedbackKind.Warning);
+        return false;
     }
 
     void OnRowDeleteRequested(int index)

@@ -6,16 +6,19 @@ using UnityEngine.InputSystem;
 
 // Menekan lalu menggeser balok di dpz = mengangkatnya. Pakai FractionDragController yang sama dengan drag bank.
 // Tekan lalu lepas tanpa geser = tap (pada balok, atau di luar balok).
+
 public class DpzBlockDragHandler : MonoBehaviour
 {
     [SerializeField] DpzView dpzView;
     [SerializeField] Camera worldCamera;                 // kosong = Camera.main
     [SerializeField] float dragThresholdPixels = 14f;
-
+    [SerializeField] bool returnUpperOnTap = true;        // tap balok bagian atas = kembalikan ke Kotak asalnya
+    
+    public event Action<int> UpperBlockTapped;
     public event Action<int> BlockTapped;                // tap pada balok (index balok)
     public event Action BackgroundTapped;                // tap di luar balok dan di luar UI (mencabut pilihan)
 
-    enum State { Idle, PressedBlock, PressedAway, Dragging }
+    enum State { Idle, PressedBlock, PressedUpper, PressedAway, Dragging }
     static readonly List<RaycastResult> uiHits = new List<RaycastResult>();
 
     State state;
@@ -67,6 +70,22 @@ public class DpzBlockDragHandler : MonoBehaviour
                 }
                 break;
 
+            case State.PressedUpper:
+                if (!ptr.press.isPressed)
+                {
+                    int tappedUpper = candidate;
+                    state = State.Idle;
+                    candidate = -1;
+                    UpperBlockTapped?.Invoke(tappedUpper);
+                    if (returnUpperOnTap) dpzView.ReturnUpperBlock(tappedUpper);
+                }
+                else if (Moved(pos))
+                {
+                    state = State.Idle;                     // digeser = bukan tap
+                    candidate = -1;
+                }
+                break;
+
             case State.PressedAway:
                 if (!ptr.press.isPressed)
                 {
@@ -98,16 +117,23 @@ public class DpzBlockDragHandler : MonoBehaviour
         if (IsOverUi(pos)) return;      // tekan di atas UI (HUD atau tombol world): bukan urusan handler ini
 
         pressPos = pos;
-        if (dpzView.Raycast(pos, WorldCam, out DpzHit hit) && hit.kind == DpzColliderKind.Block)
+        if (dpzView.Raycast(pos, WorldCam, out DpzHit hit))
         {
-            candidate = hit.blockIndex;
-            state = State.PressedBlock;
+            if (hit.kind == DpzColliderKind.Block)
+            {
+                candidate = hit.blockIndex;
+                state = State.PressedBlock;
+                return;
+            }
+            if (hit.kind == DpzColliderKind.UpperBlock)
+            {
+                candidate = hit.blockIndex;
+                state = State.PressedUpper;
+                return;
+            }
         }
-        else
-        {
-            candidate = -1;
-            state = State.PressedAway;
-        }
+        candidate = -1;
+        state = State.PressedAway;
     }
 
     void BeginLift(Vector2 pos, FractionDragController drag)

@@ -3,6 +3,8 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering;
 
+// Area Balok 3D. Dua bagian: ATAS = balok yang ditarik dari Kotak (urutan bebas), BAWAH = tebakan sisa dari bank (satu row),
+// dipisah sectionGapRows baris kosong. Sumbu lokal: baris memanjang ke +X, baris berikutnya ke -Z (atau +Z).
 public class DpzView : MonoBehaviour
 {
     static readonly int BorderColorId = Shader.PropertyToID("_BorderColor");
@@ -16,6 +18,7 @@ public class DpzView : MonoBehaviour
     static readonly int HatchDashedId = Shader.PropertyToID("_HatchDashed");
     static readonly int HatchDashLengthId = Shader.PropertyToID("_HatchDashLength");
     static readonly int HatchDashGapId = Shader.PropertyToID("_HatchDashGap");
+    static readonly int HatchPhaseId = Shader.PropertyToID("_HatchPhase");    // opsional: hanya dipakai kalau shader punya
     static readonly int MeshUnitId = Shader.PropertyToID("_MeshUnit");
     static readonly int AnchorTopId = Shader.PropertyToID("_AnchorTop");
 
@@ -29,6 +32,8 @@ public class DpzView : MonoBehaviour
     [Header("Area (Plane dengan material shader ARPecahan/DpzArea, anak dari objek ini)")]
     [SerializeField] Transform outerArea;              // zona luar (catch-all)
     [SerializeField] Transform innerArea;              // area balok
+    [SerializeField] Transform upperArea;              // bagian atas: balok dari Kotak (opsional)
+    [SerializeField] Transform lowerArea;              // bagian bawah: tebakan sisa (opsional)
     [SerializeField] float areaMeshUnit = 10f;         // ukuran mesh bawaan di X dan Z (Plane Unity = 10, Quad/Cube = 1)
     [SerializeField] float areaScaleY = 1f;
     [SerializeField] float areaBaseY = 0f;
@@ -41,30 +46,51 @@ public class DpzView : MonoBehaviour
     [SerializeField] float colliderHeight = 0.02f;
     [SerializeField] float raycastMaxDistance = 5f;
 
-    // Sumbu lokal: baris memanjang ke +X, baris berikutnya ke -Z (atau +Z). Origin = sudut anchor area dalam.
+    struct SectionRect { public Vector2 center; public Vector2 size; }   // center = (x, z)
+
+    sealed class AreaBinding
+    {
+        public Transform t;
+        public MeshRenderer mr;
+        public DpzAreaStyle cfg;
+        public int order;
+        public bool wasDynamic;
+    }
+
     FractionSession session;
     bool bound;
-    readonly List<DpzBlockView> blocks = new List<DpzBlockView>();
+    readonly List<DpzBlockView> blocks = new List<DpzBlockView>();        // bagian bawah (dpz)
+    readonly List<DpzBlockView> upperBlocks = new List<DpzBlockView>();   // bagian atas
+    DpzBlockView carryBlock;
     int highlightedBlock = -1;
     int liftedBlock = -1;
     int selectedBlock = -1;
     int mergeTarget = -1;
     int mergeCount;
     bool mergeGhostOn;
-    bool predictedExtra;
+    bool predictedUpperExtra;
     bool tracked = true;   // false = marker hilang
     Vector2 innerSize, targetInnerSize;               // (lebar X, kedalaman Z)
+    int layoutUpperRows = 1;
+    SectionRect upperNow, upperTarget, lowerNow, lowerTarget;
 
     BoxCollider outerCol, innerCol;
     MaterialPropertyBlock areaMpb;
-    AreaTitle outerTitle, innerTitle;
+    AreaBinding[] areaBindings = new AreaBinding[0];
+    AreaTitle outerTitle, innerTitle, upperTitle, lowerTitle;
 
-    DpzBlockView preview;
+    DpzBlockView preview;                  // slot blok baru di bagian bawah
     bool previewShown, previewGhostShown;
     Fraction previewPiece;
     int previewRow;
 
+    DpzBlockView upperPreview;             // slot balok Kotak di bagian atas
+    bool upperPreviewShown;
+    Fraction upperPreviewPiece;
+    int upperPreviewSlot;
+
     float GrowSign => growTowardPositiveZ ? 1f : -1f;
+    float Pitch => style.thickness + style.rowGap;
     int DpzLayer
     {
         get
@@ -75,7 +101,8 @@ public class DpzView : MonoBehaviour
     }
 
     public float ColliderHeight => colliderHeight;
-    public int BlockCount => blocks.Count;
+    public int BlockCount => blocks.Count;               // balok bagian bawah
+    public int UpperBlockCount => upperBlocks.Count;
     public bool Tracked => tracked;
 
     // Dipanggil DpzTrackingGate: marker hilang = dpz tidak bisa disentuh (raycast tidak mengenai apa pun)
@@ -100,22 +127,27 @@ public class DpzView : MonoBehaviour
         if (dpzMask.value == 0) Debug.LogWarning($"[{name}] DpzView: dpzMask kosong, raycast dunia tidak akan menemukan dpz", this);
 
         session = controller.Session;
-        session.Dpz.Changed += Refresh;
+        session.Dpz.Changed += RefreshLower;
+        session.Upper.Changed += RefreshUpper;
         bound = true;
 
         outerCol ??= CreateAreaCollider("OuterCatch", DpzColliderKind.Outer);
         innerCol ??= CreateAreaCollider("InnerCatch", DpzColliderKind.Inner);
 
-        Refresh();
+        RefreshUpper();      // menghitung jumlah baris bagian atas dulu, baru bagian bawah ditempatkan
+        RefreshLower();
         ApplyAreaVisuals();
         innerSize = targetInnerSize;   // tampil langsung dengan ukuran yang benar, tanpa animasi awal
+        upperNow = upperTarget;
+        lowerNow = lowerTarget;
         ApplyAreas();
     }
 
     void Unbind()
     {
         if (!bound) return;
-        session.Dpz.Changed -= Refresh;
+        session.Dpz.Changed -= RefreshLower;
+        session.Upper.Changed -= RefreshUpper;
         bound = false;
     }
 
@@ -132,18 +164,147 @@ public class DpzView : MonoBehaviour
         return col;
     }
 
-    // Data -> tampilan. Blok dipakai ulang; hanya tambah atau kurangi di ujung.
-    void Refresh()
+    // ---------- tata letak ----------
+    bool CarryVisible => style.showCarryBlock && session != null && session.Upper.CarryWholes > 0;
+    int UpperVisualCount => session.Upper.Count + (CarryVisible ? 1 : 0);
+
+    int UpperRowsFor(int visualCount)
+    {
+        int withEmpty = Mathf.Min(visualCount + style.minEmptyRows, GameRules.MaxUpperBlocks + 1);
+        return Mathf.Max(style.minRows, Mathf.Max(visualCount, withEmpty));
+    }
+
+    int LowerSlot => layoutUpperRows + style.sectionGapRows;
+
+    Vector3 BlockOrigin(int slot)
+    {
+        float z = GrowSign < 0f
+            ? -(style.innerPadding + slot * Pitch)
+            : style.innerPadding + slot * Pitch + style.thickness;
+        return new Vector3(style.innerPadding, 0f, z);   // blok memanjang ke -Z dari origin-nya, jadi arah +Z digeser setebal blok
+    }
+
+    Vector3 LowerOrigin(int i) => BlockOrigin(LowerSlot + i);
+
+    // Tepi baris yang paling dekat dengan sudut anchor, di sumbu Z
+    float RowNear(int slot) => GrowSign < 0f ? -(style.innerPadding + slot * Pitch) : style.innerPadding + slot * Pitch;
+
+    Vector2 ComputeInnerSize(int rows)
+    {
+        float w = style.wholeLength + 2f * style.innerPadding;
+        float d = rows * style.thickness + (rows - 1) * style.rowGap + 2f * style.innerPadding;
+        return new Vector2(w, d);
+    }
+
+    SectionRect ComputeSection(int firstSlot, int rows)
+    {
+        float near = RowNear(firstSlot) - GrowSign * style.sectionPadding;
+        float far = RowNear(firstSlot + rows - 1) + GrowSign * (style.thickness + style.sectionPadding);
+        return new SectionRect
+        {
+            center = new Vector2(style.innerPadding + style.wholeLength * 0.5f, (near + far) * 0.5f),
+            size = new Vector2(style.wholeLength + 2f * style.sectionPadding, Mathf.Abs(far - near))
+        };
+    }
+
+    // Saat hover Kotak yang bakal menambah blok dan toggle aktif, area langsung dihitung dengan satu baris lebih banyak
+    void RecomputeTarget()
+    {
+        int visual = UpperVisualCount + ((style.areaPredictsOnHover && predictedUpperExtra) ? 1 : 0);
+        int rows = UpperRowsFor(visual);
+        bool changed = rows != layoutUpperRows;
+        layoutUpperRows = rows;
+
+        targetInnerSize = ComputeInnerSize(LowerSlot + 1);
+        upperTarget = ComputeSection(0, layoutUpperRows);
+        lowerTarget = ComputeSection(LowerSlot, 1);
+
+        if (changed) RelayoutLower();
+        if (bound) ApplyTitles();
+    }
+
+    void SetPredictedUpperExtra(bool value)
+    {
+        if (predictedUpperExtra == value) return;
+        predictedUpperExtra = value;
+        RecomputeTarget();
+    }
+
+    DpzBlockView CreateBlock(DpzColliderKind kind = DpzColliderKind.Block)
+    {
+        var go = new GameObject("DpzBlock");
+        go.transform.SetParent(transform, false);
+        var b = go.AddComponent<DpzBlockView>();
+        b.Init(style, visuals, decalMaterial, this, DpzLayer, kind);
+        return b;
+    }
+
+    // ---------- data -> tampilan: bagian atas ----------
+    void RefreshUpper()
+    {
+        HideUpperPreview();
+        predictedUpperExtra = false;
+
+        var list = session.Upper.Blocks;
+        int count = list.Count;
+        int oldCount = upperBlocks.Count;
+        int removedAt = session.Upper.LastRemovedIndex;
+        bool reflow = style.reflowSpeed > 0f && removedAt >= 0 && count == oldCount - 1;
+
+        while (upperBlocks.Count > count)
+        {
+            DpzBlockView extra = upperBlocks[upperBlocks.Count - 1];
+            upperBlocks.RemoveAt(upperBlocks.Count - 1);
+            if (extra) { extra.gameObject.SetActive(false); Destroy(extra.gameObject); }
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            if (i >= upperBlocks.Count) upperBlocks.Add(null);
+            if (!upperBlocks[i]) upperBlocks[i] = CreateBlock(DpzColliderKind.UpperBlock);
+
+            AreaBlock b = list[i];
+            Color c = controller.Palette.Get(b.piece.denominator);
+            if (b.subtracted) c = Color.Lerp(c, style.subtractColor, style.subtractBlend);
+            upperBlocks[i].Show(b.piece, i, c, BlockOrigin(i));
+        }
+
+        if (reflow)
+            for (int i = removedAt; i < count; i++) upperBlocks[i].AnimateFrom(BlockOrigin(i + 1));
+
+        RefreshCarry();
+        RecomputeTarget();
+    }
+
+    // Balok utuh otomatis dari jumlah row sebagian yang melewati 1; tidak bisa disentuh
+    void RefreshCarry()
+    {
+        if (!CarryVisible)
+        {
+            if (carryBlock) carryBlock.gameObject.SetActive(false);
+            return;
+        }
+
+        if (!carryBlock)
+        {
+            carryBlock = CreateBlock(DpzColliderKind.UpperBlock);
+            carryBlock.name = "DpzCarry";
+            carryBlock.SetInteractive(false);
+        }
+        carryBlock.gameObject.SetActive(true);
+        carryBlock.Show(Fraction.Whole(1), session.Upper.Count, style.carryColor, BlockOrigin(session.Upper.Count));
+    }
+
+    // ---------- data -> tampilan: bagian bawah ----------
+    void RefreshLower()
     {
         HidePreview();
         SetMergeFeedback(-1, 0, false);
-        predictedExtra = false;
 
         var pieces = session.Dpz.Pieces;
         int count = pieces.Count;
         int oldCount = blocks.Count;
 
-        // Ada baris yang hilang? (LastRemovedIndex diisi KotakContents sebelum Changed)
         int removedAt = session.Dpz.LastRemovedIndex;
         bool reflow = style.reflowSpeed > 0f && removedAt >= 0 && count == oldCount - 1;
 
@@ -160,79 +321,58 @@ public class DpzView : MonoBehaviour
             if (!blocks[i]) blocks[i] = CreateBlock();   // masuk list SEBELUM Show
 
             Fraction p = pieces[i];
-            blocks[i].Show(p, i, controller.Palette.Get(p.denominator), BlockOrigin(i));
+            blocks[i].Show(p, i, controller.Palette.Get(p.denominator), LowerOrigin(i));
             blocks[i].SetHighlight(i == highlightedBlock ? 1f : 0f);
         }
-        
-        // Isi yang bergeser mulai dari removedAt meluncur dari posisi lamanya (satu baris di bawah) ke posisi barunya
+
         if (reflow)
-            for (int i = removedAt; i < count; i++) blocks[i].AnimateFrom(BlockOrigin(i + 1));
+            for (int i = removedAt; i < count; i++) blocks[i].AnimateFrom(LowerOrigin(i + 1));
 
         if (highlightedBlock >= count) highlightedBlock = -1;
         if (liftedBlock >= count) liftedBlock = -1;
 
         // Pilihan dicabut kalau jumlah blok berubah; tetap kalau hanya isi blok yang berubah (-1 satuan, merge)
         if (selectedBlock >= 0 && (oldCount != count || selectedBlock >= count)) SetSelection(-1);
-
-        RecomputeTarget();
     }
 
-    // baris area = max(minRows, jumlah blok, min(jumlah blok + minEmptyRows, batas blok))
-    int ComputeRows(int count)
+    // Bagian atas bertambah atau berkurang: bagian bawah meluncur ke slot barunya
+    void RelayoutLower()
     {
-        int withEmpty = Mathf.Min(count + style.minEmptyRows, GameRules.MaxDpzBlocks);
-        return Mathf.Max(style.minRows, Mathf.Max(count, withEmpty));
-    }
-
-    // Saat hover yang bakal menambah blok dan toggle aktif, area langsung dihitung dengan satu blok lebih banyak
-    void RecomputeTarget()
-    {
-        int count = blocks.Count + ((style.areaPredictsOnHover && predictedExtra) ? 1 : 0);
-        targetInnerSize = ComputeInnerSize(ComputeRows(count));
-    }
-
-    void SetPredictedExtra(bool value)
-    {
-        if (predictedExtra == value) return;
-        predictedExtra = value;
-        RecomputeTarget();
-    }
-
-    DpzBlockView CreateBlock()
-    {
-        var go = new GameObject("DpzBlock");
-        go.transform.SetParent(transform, false);
-        var b = go.AddComponent<DpzBlockView>();
-        b.Init(style, visuals, decalMaterial, this, DpzLayer);
-        return b;
-    }
-
-    Vector2 ComputeInnerSize(int rows)
-    {
-        float w = style.wholeLength + 2f * style.innerPadding;
-        float d = rows * style.thickness + (rows - 1) * style.rowGap + 2f * style.innerPadding;
-        return new Vector2(w, d);
-    }
-
-    // Posisi lokal origin blok ke-i. Blok memanjang ke -Z dari origin-nya, jadi arah +Z digeser setebal blok.
-    Vector3 BlockOrigin(int i)
-    {
-        float pitch = style.thickness + style.rowGap;
-        float z = GrowSign < 0f
-            ? -(style.innerPadding + i * pitch)
-            : style.innerPadding + i * pitch + style.thickness;
-        return new Vector3(style.innerPadding, 0f, z);
+        if (!bound) return;
+        var pieces = session.Dpz.Pieces;
+        for (int i = 0; i < blocks.Count && i < pieces.Count; i++)
+            if (blocks[i]) blocks[i].Show(pieces[i], i, controller.Palette.Get(pieces[i].denominator), LowerOrigin(i));
     }
 
     void Update()
     {
         if (!bound) return;
-        if ((innerSize - targetInnerSize).sqrMagnitude < 1e-12f) return;
 
         float k = 1f - Mathf.Exp(-areaSmoothing * Time.unscaledDeltaTime);
-        innerSize = Vector2.Lerp(innerSize, targetInnerSize, k);
-        if ((innerSize - targetInnerSize).sqrMagnitude < 1e-10f) innerSize = targetInnerSize;
-        ApplyAreas();
+        bool moving = false;
+
+        if ((innerSize - targetInnerSize).sqrMagnitude >= 1e-12f)
+        {
+            innerSize = Vector2.Lerp(innerSize, targetInnerSize, k);
+            if ((innerSize - targetInnerSize).sqrMagnitude < 1e-10f) innerSize = targetInnerSize;
+            moving = true;
+        }
+        moving |= StepSection(ref upperNow, upperTarget, k);
+        moving |= StepSection(ref lowerNow, lowerTarget, k);
+        if (moving) ApplyAreas();
+
+        AnimateAreas(false);
+    }
+
+    static bool StepSection(ref SectionRect now, SectionRect target, float k)
+    {
+        bool same = (now.center - target.center).sqrMagnitude < 1e-12f && (now.size - target.size).sqrMagnitude < 1e-12f;
+        if (same) return false;
+
+        now.center = Vector2.Lerp(now.center, target.center, k);
+        now.size = Vector2.Lerp(now.size, target.size, k);
+        if ((now.center - target.center).sqrMagnitude < 1e-10f && (now.size - target.size).sqrMagnitude < 1e-10f) now = target;
+        return true;
     }
 
     // Sudut anchor kedua area tetap; hanya sisi kanan dan sisi arah tumbuh yang bergerak
@@ -244,6 +384,8 @@ public class DpzView : MonoBehaviour
 
         PlaceArea(outerArea, outer, cx, cz, areaBaseY);
         PlaceArea(innerArea, innerSize, cx, cz, areaBaseY + innerAreaLift);
+        PlaceArea(upperArea, upperNow.size, upperNow.center.x, upperNow.center.y, areaBaseY + innerAreaLift * 2f);
+        PlaceArea(lowerArea, lowerNow.size, lowerNow.center.x, lowerNow.center.y, areaBaseY + innerAreaLift * 2f);
         SizeCollider(outerCol, outer, cx, cz);
         SizeCollider(innerCol, innerSize, cx, cz);
     }
@@ -262,7 +404,7 @@ public class DpzView : MonoBehaviour
         col.size = new Vector3(size.x, colliderHeight, size.y);
     }
 
-    // ---------- raycast dunia: prioritas Block > Inner > Outer ----------
+    // ---------- raycast dunia: prioritas Block dan UpperBlock > Inner > Outer ----------
     public bool Raycast(Vector2 screenPos, Camera cam, out DpzHit result)
     {
         result = default;
@@ -277,7 +419,8 @@ public class DpzView : MonoBehaviour
         {
             if (!hitBuffer[i].collider.TryGetComponent(out DpzCollider tag) || tag.owner != this) continue;
 
-            int priority = tag.kind == DpzColliderKind.Block ? 2 : (tag.kind == DpzColliderKind.Inner ? 1 : 0);
+            bool isBlock = tag.kind == DpzColliderKind.Block || tag.kind == DpzColliderKind.UpperBlock;
+            int priority = isBlock ? 2 : (tag.kind == DpzColliderKind.Inner ? 1 : 0);
             float dist = hitBuffer[i].distance;
             if (priority > bestPriority || (priority == bestPriority && dist < bestDistance))
             {
@@ -289,8 +432,16 @@ public class DpzView : MonoBehaviour
         return bestPriority >= 0;
     }
 
+    // Potongan dari bank: masuk ke bagian bawah
     public RejectReason TryDrop(Fraction piece, int blockIndex = -1) =>
         bound ? session.TryDropToDpz(piece, blockIndex) : RejectReason.SoalBelumDibentuk;
+
+    // Row Kotak yang ditarik: masuk ke bagian atas
+    public RejectReason TryMoveFromKotak(bool fromA, int rowIndex) =>
+        bound ? session.TryMoveToArea(fromA, rowIndex) : RejectReason.SoalBelumDibentuk;
+
+    // Balok bagian atas dikembalikan ke Kotak asalnya
+    public bool ReturnUpperBlock(int index) => bound && session.ReturnToKotak(index);
 
     // Gabung antar-blok dpz (balok yang diangkat dilepas di atas balok lain); mengembalikan jumlah satuan yang pindah
     public int TryMergeBlocks(int sourceIndex, int targetIndex) =>
@@ -314,7 +465,7 @@ public class DpzView : MonoBehaviour
         if (index >= 0 && index < blocks.Count && blocks[index]) blocks[index].SetLifted(true);
     }
 
-    // ---------- seleksi blok (tap-select) ----------
+    // ---------- seleksi blok bagian bawah (tap-select) ----------
     public int SelectedBlock => selectedBlock;
     public event System.Action<int> SelectionChanged;   // index terpilih, atau -1
 
@@ -335,10 +486,10 @@ public class DpzView : MonoBehaviour
     // Ukuran satu baris blok: panjang = Whole Length (track penuh), lebar = tebal baris (meter)
     public Vector2 BlockFootprint => new Vector2(style.wholeLength, style.thickness);
 
-    // Titik tengah atas blok ke-index (koordinat lokal objek ini): di tengah baris, tepat di atas tinggi sel
+    // Titik tengah atas blok bawah ke-index (koordinat lokal objek ini)
     public Vector3 BlockTopCenterLocal(int index, float extraLift)
     {
-        Vector3 o = BlockOrigin(index);
+        Vector3 o = LowerOrigin(index);
         return new Vector3(o.x + style.wholeLength * 0.5f,
                            style.baseLift + style.height + extraLift,
                            o.z - style.thickness * 0.5f);   // blok memanjang ke -Z dari origin-nya
@@ -347,31 +498,54 @@ public class DpzView : MonoBehaviour
     // ---------- shader area dan judul ----------
     void ApplyAreaVisuals()
     {
-        ApplyAreaMaterial(outerArea, style.outerArea, -20);   // transparan: luar digambar dulu, lalu dalam
-        ApplyAreaMaterial(innerArea, style.innerArea, -10);
-
-        outerTitle ??= new AreaTitle(transform, "OuterTitle");
-        innerTitle ??= new AreaTitle(transform, "InnerTitle");
-
-        float m = style.outerMargin;
-        Vector3 outerCorner = new Vector3(-m, areaBaseY, -GrowSign * m);   // sudut anchor: sisi berlawanan arah tumbuh, di kiri
-        Vector3 innerCorner = new Vector3(0f, areaBaseY + innerAreaLift, 0f);
-        outerTitle.Apply(style.outerArea, outerCorner, GrowSign);
-        innerTitle.Apply(style.innerArea, innerCorner, GrowSign);
+        areaBindings = new[]
+        {
+            new AreaBinding { t = outerArea, cfg = style.outerArea, order = -20 },   // transparan: luar digambar dulu, lalu dalam, lalu bagian
+            new AreaBinding { t = innerArea, cfg = style.innerArea, order = -10 },
+            new AreaBinding { t = upperArea, cfg = style.upperArea, order = -6 },
+            new AreaBinding { t = lowerArea, cfg = style.lowerArea, order = -5 },
+        };
+        AnimateAreas(true);
+        ApplyTitles();
     }
 
-    void ApplyAreaMaterial(Transform area, DpzAreaStyle cfg, int sortingOrder)
+    // Kedip dan garis bergerak dihitung tiap frame hanya untuk area yang memintanya
+    void AnimateAreas(bool force)
     {
-        if (!area) return;
-        var mr = area.GetComponent<MeshRenderer>();
+        float t = Time.unscaledTime;
+        foreach (AreaBinding a in areaBindings)
+        {
+            if (a == null || a.t == null) continue;
+
+            DpzAreaStyle cfg = a.cfg;
+            bool dynamic = cfg.visible && (cfg.flash || cfg.lineAnimated);
+            if (!force && !dynamic && !a.wasDynamic) continue;
+            a.wasDynamic = dynamic;
+
+            float alpha = cfg.flash ? 1f - cfg.flashDepth * (0.5f + 0.5f * Mathf.Sin(t * cfg.flashSpeed * Mathf.PI * 2f)) : 1f;
+            float phase = cfg.lineAnimated ? t * cfg.lineAnimSpeed : 0f;
+            ApplyAreaMaterial(a, alpha, phase);
+        }
+    }
+
+    static Color WithAlpha(Color c, float mul) { c.a *= mul; return c; }
+
+    void ApplyAreaMaterial(AreaBinding a, float alphaMul, float phase)
+    {
+        if (a.mr == null) a.mr = a.t.GetComponent<MeshRenderer>();
+        MeshRenderer mr = a.mr;
         if (!mr) return;
+
+        DpzAreaStyle cfg = a.cfg;
+        mr.enabled = cfg.visible;
+        if (!cfg.visible) return;
 
         areaMpb ??= new MaterialPropertyBlock();
         mr.GetPropertyBlock(areaMpb);
-        areaMpb.SetColor(BorderColorId, cfg.borderColor);
+        areaMpb.SetColor(BorderColorId, WithAlpha(cfg.borderColor, alphaMul));
         areaMpb.SetFloat(BorderThicknessId, cfg.borderThickness);
-        areaMpb.SetColor(FillColorId, cfg.fillColor);
-        areaMpb.SetColor(HatchColorId, cfg.hatchColor);
+        areaMpb.SetColor(FillColorId, WithAlpha(cfg.fillColor, alphaMul));
+        areaMpb.SetColor(HatchColorId, WithAlpha(cfg.hatchColor, alphaMul));
         areaMpb.SetFloat(HatchEnabledId, cfg.hatch ? 1f : 0f);
         areaMpb.SetFloat(HatchAngleId, cfg.hatchAngle);
         areaMpb.SetFloat(HatchSpacingId, cfg.hatchSpacing);
@@ -381,11 +555,28 @@ public class DpzView : MonoBehaviour
         areaMpb.SetFloat(HatchDashGapId, cfg.hatchDashGap);
         areaMpb.SetFloat(MeshUnitId, areaMeshUnit);
         areaMpb.SetFloat(AnchorTopId, GrowSign < 0f ? 1f : 0f);
+        if (mr.sharedMaterial != null && mr.sharedMaterial.HasProperty(HatchPhaseId)) areaMpb.SetFloat(HatchPhaseId, phase);
         mr.SetPropertyBlock(areaMpb);
 
-        mr.sortingOrder = sortingOrder;
+        mr.sortingOrder = a.order;
         mr.shadowCastingMode = ShadowCastingMode.Off;
         mr.receiveShadows = false;
+    }
+
+    void ApplyTitles()
+    {
+        outerTitle ??= new AreaTitle(transform, "OuterTitle");
+        innerTitle ??= new AreaTitle(transform, "InnerTitle");
+        upperTitle ??= new AreaTitle(transform, "UpperTitle");
+        lowerTitle ??= new AreaTitle(transform, "LowerTitle");
+
+        float m = style.outerMargin;
+        float y = areaBaseY + innerAreaLift;
+        float sx = style.innerPadding - style.sectionPadding;
+        outerTitle.Apply(style.outerArea, new Vector3(-m, areaBaseY, -GrowSign * m), GrowSign);   // sudut anchor: sisi berlawanan arah tumbuh, di kiri
+        innerTitle.Apply(style.innerArea, new Vector3(0f, y, 0f), GrowSign);
+        upperTitle.Apply(style.upperArea, new Vector3(sx, y * 2f, RowNear(0) - GrowSign * style.sectionPadding), GrowSign);
+        lowerTitle.Apply(style.lowerArea, new Vector3(sx, y * 2f, RowNear(LowerSlot) - GrowSign * style.sectionPadding), GrowSign);
     }
 
     // Judul rebah di bidang dpz, di luar area, menempel pada sudut anchor (tidak ikut bergeser saat area mengembang)
@@ -420,7 +611,7 @@ public class DpzView : MonoBehaviour
 
         public void Apply(DpzAreaStyle cfg, Vector3 corner, float growSign)
         {
-            bool show = !string.IsNullOrEmpty(cfg.title);
+            bool show = cfg.visible && !string.IsNullOrEmpty(cfg.title);
             rt.gameObject.SetActive(show);
             if (!show) return;
 
@@ -437,10 +628,13 @@ public class DpzView : MonoBehaviour
     }
 
     // ---------- umpan balik hover (satu sumber kebenaran: debug zone dan zona dunia memanggil ini) ----------
-    // Potongan dari bank
+    // Potongan dari bank: bagian bawah
     public void SetHover(Fraction piece, int blockUnderPointer = -1, bool overInnerArea = true)
     {
         if (!bound) return;
+
+        HideUpperPreview();
+        SetPredictedUpperExtra(false);
 
         bool ghostAllowed = style.ghostScope == GhostScope.AllAreas
                          || (style.ghostScope == GhostScope.InnerAreaOnly && overInnerArea);
@@ -451,7 +645,6 @@ public class DpzView : MonoBehaviour
             SetHighlightedBlock(target);                 // blok sejenis yang belum penuh: garis blok itu highlight, tanpa preview
             HidePreview();
             SetMergeFeedback(target, 1, ghostAllowed);   // sel berikutnya: isian prediksi (dan ghost satuan sesuai scope)
-            SetPredictedExtra(false);
             return;
         }
 
@@ -459,14 +652,29 @@ public class DpzView : MonoBehaviour
         SetMergeFeedback(-1, 0, false);
 
         if (session.PreviewDropToDpz(piece, blockUnderPointer) == RejectReason.None)
-        {
             ShowPreview(piece, ghostAllowed);            // slot blok baru: track animasi, sel pertama prediksi, ghost satuan
-            SetPredictedExtra(true);
+        else
+            HidePreview();                               // ditolak: tanpa preview
+    }
+
+    // Row Kotak yang diseret: bagian atas
+    public void SetHoverKotak(Fraction piece, bool fromA, int rowIndex)
+    {
+        if (!bound) return;
+
+        SetHighlightedBlock(-1);
+        SetMergeFeedback(-1, 0, false);
+        HidePreview();
+
+        if (session.PreviewMoveToArea(fromA, rowIndex) == RejectReason.None)
+        {
+            ShowUpperPreview(piece);
+            SetPredictedUpperExtra(true);
         }
         else
         {
-            HidePreview();                               // ditolak: tanpa preview
-            SetPredictedExtra(false);
+            HideUpperPreview();
+            SetPredictedUpperExtra(false);
         }
     }
 
@@ -480,9 +688,10 @@ public class DpzView : MonoBehaviour
 
         bool ghostAllowed = style.ghostScope != GhostScope.Off;                // pointer di atas balok = area dalam
         HidePreview();
+        HideUpperPreview();
         SetHighlightedBlock(targetIndex);
         SetMergeFeedback(targetIndex, count, ghostAllowed);                    // sebanyak sel yang akan masuk
-        SetPredictedExtra(false);
+        SetPredictedUpperExtra(false);
     }
 
     public void ClearHover()
@@ -490,7 +699,8 @@ public class DpzView : MonoBehaviour
         SetHighlightedBlock(-1);
         SetMergeFeedback(-1, 0, false);
         HidePreview();
-        SetPredictedExtra(false);
+        HideUpperPreview();
+        SetPredictedUpperExtra(false);
     }
 
     public void SetHighlightedBlock(int index)
@@ -533,7 +743,7 @@ public class DpzView : MonoBehaviour
 
     void ShowPreview(Fraction piece, bool ghostAllowed)
     {
-        int row = blocks.Count;   // baris kosong berikutnya
+        int row = blocks.Count;   // slot kosong berikutnya di bagian bawah
         if (previewShown && previewRow == row && previewGhostShown == ghostAllowed
             && previewPiece.numerator == piece.numerator && previewPiece.denominator == piece.denominator) return;
 
@@ -541,7 +751,7 @@ public class DpzView : MonoBehaviour
         preview.gameObject.SetActive(true);
 
         Color c = controller.Palette.Get(piece.denominator);
-        preview.ShowPreview(piece, c, BlockOrigin(row));
+        preview.ShowPreview(piece, c, LowerOrigin(row));
         if (ghostAllowed) preview.ShowGhostUnit(0, (int)piece.denominator, c, style.ghostAlpha);
         else preview.HideGhostUnit();
 
@@ -555,24 +765,48 @@ public class DpzView : MonoBehaviour
         if (preview) { preview.HideGhostUnit(); preview.gameObject.SetActive(false); }
     }
 
+    void ShowUpperPreview(Fraction piece)
+    {
+        int slot = UpperVisualCount;   // slot kosong berikutnya di bagian atas
+        if (upperPreviewShown && upperPreviewSlot == slot
+            && upperPreviewPiece.numerator == piece.numerator && upperPreviewPiece.denominator == piece.denominator) return;
+
+        if (!upperPreview) { upperPreview = CreateBlock(DpzColliderKind.UpperBlock); upperPreview.name = "DpzUpperPreview"; }
+        upperPreview.gameObject.SetActive(true);
+        upperPreview.ShowPreview(piece, controller.Palette.Get(piece.denominator), BlockOrigin(slot));
+
+        upperPreviewShown = true; upperPreviewPiece = piece; upperPreviewSlot = slot;
+    }
+
+    void HideUpperPreview()
+    {
+        if (!upperPreviewShown) return;
+        upperPreviewShown = false;
+        if (upperPreview) upperPreview.gameObject.SetActive(false);
+    }
+
     [ContextMenu("Debug: Refresh Visuals")]   // klik setelah mengubah DpzStyle saat Play
     void DebugRefreshVisuals()
     {
         foreach (var b in blocks) if (b) b.InvalidateVisual();
+        foreach (var b in upperBlocks) if (b) b.InvalidateVisual();
+        if (carryBlock) carryBlock.InvalidateVisual();
         if (!bound) return;
-        Refresh();
+        RefreshUpper();
+        RefreshLower();
         ApplyAreaVisuals();
     }
 
     [ContextMenu("Debug: Toggle highlight blok 0")]   // tes highlight tanpa perlu drag
     void DebugToggleHighlight()
     {
-        if (blocks.Count == 0) { Debug.Log("[Dpz] belum ada blok", this); return; }
+        if (blocks.Count == 0) { Debug.Log("[Dpz] belum ada blok bawah", this); return; }
         SetHighlightedBlock(highlightedBlock == 0 ? -1 : 0);
         Debug.Log($"[Dpz] {blocks[0].DebugInfo()}", this);
     }
 
     [ContextMenu("Debug: Cetak status")]
     void DebugPrintState() =>
-        Debug.Log($"[Dpz] bound={bound} blok={blocks.Count} dpzMask={dpzMask.value} layer={DpzLayer} outerCol={(outerCol != null)} innerCol={(innerCol != null)}", this);
+        Debug.Log($"[Dpz] bound={bound} atas={upperBlocks.Count} bawah={blocks.Count} barisAtas={layoutUpperRows} carry={CarryVisible} " +
+                  $"dpzMask={dpzMask.value} layer={DpzLayer} outerCol={(outerCol != null)} innerCol={(innerCol != null)}", this);
 }

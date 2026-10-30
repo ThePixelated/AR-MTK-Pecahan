@@ -6,6 +6,16 @@ public enum GhostScope { Off = 0, InnerAreaOnly = 1, AllAreas = 2 }
 [System.Serializable]
 public class DpzAreaStyle
 {
+    [Header("Tampil")]
+    public bool visible = true;                       // toggle area ini
+
+    [Header("Animasi")]
+    public bool flash = false;                        // kedip: opacity naik turun
+    public float flashSpeed = 1.2f;                   // Hz
+    [Range(0f, 1f)] public float flashDepth = 0.6f;   // seberapa dalam opacity turun
+    public bool lineAnimated = false;                 // garis arsir bergerak (butuh properti _HatchPhase di shader DpzArea)
+    public float lineAnimSpeed = 0.01f;               // meter per detik
+
     [Header("Garis tepi")]
     public Color borderColor = new Color(1f, 1f, 1f, 0.9f);
     public float borderThickness = 0.001f;            // meter
@@ -80,6 +90,14 @@ public class DpzStyle : ScriptableObject
     [Range(0f, 1f)] public float heldGhostAlpha = 0.85f;
     public float heldGhostLift = 0.01f;              // meter di atas bidang dpz
 
+    [Header("Area dua bagian: atas (balok dari Kotak) dan bawah (tebakan sisa)")]
+    public float sectionPadding = 0.003f;             // jarak isi ke tepi tiap bagian (meter)
+    [Min(0)] public int sectionGapRows = 1;           // baris kosong di antara bagian atas dan bawah
+    public bool showCarryBlock = true;                // balok utuh otomatis dari penjumlahan pecahan (5/4 -> 1)
+    public Color carryColor = new Color(1f, 0.85f, 0.3f, 1f);
+    public Color subtractColor = new Color(0.9f, 0.35f, 0.3f, 1f);   // tint balok yang dikurangkan (Media 6)
+    [Range(0f, 1f)] public float subtractBlend = 0.5f;
+
     [Header("Area (shader DpzArea): konfigurasi terpisah luar dan dalam")]
     public DpzAreaStyle outerArea = new DpzAreaStyle
     {
@@ -97,5 +115,23 @@ public class DpzStyle : ScriptableObject
         borderThickness = 0.001f,
         fillColor = new Color(1f, 1f, 1f, 0.10f),
         hatchColor = new Color(1f, 1f, 1f, 0.22f),
+    };
+
+    public DpzAreaStyle upperArea = new DpzAreaStyle
+    {
+        title = "",
+        borderColor = new Color(1f, 1f, 1f, 0.5f),
+        borderThickness = 0.0006f,
+        fillColor = new Color(1f, 1f, 1f, 0.04f),
+        hatch = false,
+    };
+    public DpzAreaStyle lowerArea = new DpzAreaStyle
+    {
+        title = "",
+        borderColor = new Color(1f, 0.85f, 0.3f, 0.9f),
+        borderThickness = 0.0008f,
+        fillColor = new Color(1f, 0.85f, 0.3f, 0.06f),
+        hatchColor = new Color(1f, 0.85f, 0.3f, 0.2f),
+        hatchDashed = true,
     };
 }

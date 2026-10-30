@@ -38,6 +38,8 @@ public class FractionSession
         Upper.Changed += OnUpperChanged;
     }
 
+    bool IsSubtracted(bool fromA) => Op == Operation.Subtract && !fromA;
+
     KotakContents Side(bool isA) => isA ? A : B;
 
     // ---- Kotak A/B ----
@@ -104,7 +106,8 @@ public class FractionSession
     // ---- area atas: balok dari Kotak (hanya Add) ----
     public RejectReason PreviewMoveToArea(bool fromA, int rowIndex)
     {
-        if (Op != Operation.Add) return RejectReason.AreaTidakTersedia;
+        // NOT USED - if (Op != Operation.Add) return RejectReason.AreaTidakTersedia;
+
         if (CurrentPhase == Phase.Menyusun) return RejectReason.SoalBelumDibentuk;
 
         KotakContents k = Side(fromA);
@@ -129,11 +132,11 @@ public class FractionSession
             busy++;
             try { k.RemoveAt(rowIndex); }
             finally { busy--; }
-            Upper.Add(new AreaBlock(piece, fromA, origin));
+            Upper.Add(new AreaBlock(piece, fromA, origin, IsSubtracted(fromA)));
         }
         else
         {
-            Upper.Add(new AreaBlock(piece, fromA, rowIndex));
+            Upper.Add(new AreaBlock(piece, fromA, rowIndex, IsSubtracted(fromA)));
         }
         return RejectReason.None;
     }
@@ -189,9 +192,7 @@ public class FractionSession
     {
         if (CurrentPhase == Phase.Menyusun) return RejectReason.SoalBelumDibentuk;
         bool createsNewBlock = FindDpzMergeTarget(piece, blockIndex) < 0;
-        return Op == Operation.Add
-            ? GameRules.CheckLowerDrop(Dpz, piece, createsNewBlock)
-            : GameRules.CheckDpzDrop(Dpz, piece, createsNewBlock);
+        return GameRules.CheckLowerDrop(Dpz, piece, createsNewBlock);
     }
 
     public RejectReason TryDropToDpz(Fraction piece, int blockIndex = -1)
@@ -219,10 +220,7 @@ public class FractionSession
     public CheckVerdict? Check()
     {
         if (CurrentPhase == Phase.Menyusun) return null;
-
-        LastVerdict = Op == Operation.Add
-            ? GameRules.CheckAreaResult(Current, Upper, Dpz, Options.CheckWholes)
-            : GameRules.CheckResult(Current, Dpz);
+        LastVerdict = GameRules.CheckAreaResult(Current, Upper, Dpz, Options.CheckWholes);
         SetPhase(Phase.Dicek);
         return LastVerdict;
     }

@@ -50,12 +50,13 @@ public class DpzBlockView : MonoBehaviour
     bool animating;
     bool hasPiece;
     bool isPreview;
+    bool interactive = true;
     Vector3 desiredPos;    // posisi tujuan (lokal); transform meluncur ke sini saat reflow
     bool placed;           // sudah pernah diletakkan (kemunculan pertama langsung di tempat)
     int previewCell = -1;
     int previewCount = 1;
 
-    public void Init(DpzStyle style, UnitVisualSet visuals, Material decalMaterial, DpzView owner, int layer)
+    public void Init(DpzStyle style, UnitVisualSet visuals, Material decalMaterial, DpzView owner, int layer, DpzColliderKind kind = DpzColliderKind.Block)
     {
         this.style = style;
         this.visuals = visuals;
@@ -67,7 +68,7 @@ public class DpzBlockView : MonoBehaviour
         boxCollider.isTrigger = true;
         colliderTag = gameObject.AddComponent<DpzCollider>();
         colliderTag.owner = owner;
-        colliderTag.kind = DpzColliderKind.Block;
+        colliderTag.kind = kind;
 
         var go = new GameObject("Track");
         track = go.transform;
@@ -237,6 +238,12 @@ public class DpzBlockView : MonoBehaviour
         if (selected == value) return;
         selected = value;
         ApplyEffectiveHighlight();
+    }
+
+    public void SetInteractive(bool value)
+    {
+        interactive = value;
+        if (boxCollider) boxCollider.enabled = value && !isPreview;
     }
 
     void ApplyEffectiveHighlight()

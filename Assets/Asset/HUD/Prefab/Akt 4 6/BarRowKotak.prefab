@@ -206,7 +206,7 @@ MonoBehaviour:
   barImage: {fileID: 6098890032613782009}
   dividerPort: {fileID: 7948039203304396504}
   dividerTemplate: {fileID: 922625132183526970}
-  dividerThickness: 14.1
+  dividerThickness: 0
   spriteFromDenominator: 0
   overflowSprite: {fileID: 0}
 --- !u!1 &5560274472554457842
@@ -393,7 +393,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:

@@ -15,12 +15,13 @@ MonoBehaviour:
   wholeLength: 0.3
   thickness: 0.015
   height: 0.012
-  cellGap: 0.001
-  inset: 0.0012
+  cellGap: 0
+  inset: 0
   rowGap: 0.01
   innerPadding: 0.01
-  outerMargin: 0.05
+  outerMargin: 0.015
   baseLift: 0.001
+  reflowSpeed: 14
   minRows: 3
   minEmptyRows: 1
   areaPredictsOnHover: 1
@@ -46,7 +47,19 @@ MonoBehaviour:
   ghostPulseAmount: 0.85
   heldGhostAlpha: 0.708
   heldGhostLift: 0.01
+  sectionPadding: 0.003
+  sectionGapRows: 1
+  showCarryBlock: 1
+  carryColor: {r: 1, g: 0.85, b: 0.3, a: 1}
+  subtractColor: {r: 0.9, g: 0.35, b: 0.3, a: 1}
+  subtractBlend: 0.514
   outerArea:
+    visible: 1
+    flash: 0
+    flashSpeed: 1.2
+    flashDepth: 0.6
+    lineAnimated: 0
+    lineAnimSpeed: 0.01
     borderColor: {r: 0.18867922, g: 0.18867922, b: 0.18867922, a: 0.59607846}
     borderThickness: 0.002
     fillColor: {r: 0, g: 0, b: 0, a: 0.05}
@@ -63,6 +76,12 @@ MonoBehaviour:
     titleSizeMM: 12
     titleOffset: {x: 0, y: 0.003}
   innerArea:
+    visible: 1
+    flash: 0
+    flashSpeed: 1.2
+    flashDepth: 0.6
+    lineAnimated: 0
+    lineAnimSpeed: 0.01
     borderColor: {r: 0.9056604, g: 0.58858, b: 0.08116765, a: 0.46666667}
     borderThickness: 0.002
     fillColor: {r: 0.764151, g: 0.5208482, b: 0.13336597, a: 0.33333334}
@@ -76,5 +95,49 @@ MonoBehaviour:
     hatchDashGap: 0.08
     title: <b>Area balok</b>
     titleColor: {r: 0.90588236, g: 0.5882353, b: 0.08235294, a: 0.7882353}
+    titleSizeMM: 11
+    titleOffset: {x: 0, y: 0.003}
+  upperArea:
+    visible: 1
+    flash: 0
+    flashSpeed: 1.2
+    flashDepth: 0.6
+    lineAnimated: 0
+    lineAnimSpeed: 0.01
+    borderColor: {r: 1, g: 1, b: 1, a: 0.5}
+    borderThickness: 0.0006
+    fillColor: {r: 1, g: 1, b: 1, a: 0.04}
+    hatch: 0
+    hatchColor: {r: 1, g: 1, b: 1, a: 0.25}
+    hatchAngle: 45
+    hatchSpacing: 0.006
+    hatchWidth: 0.0006
+    hatchDashed: 0
+    hatchDashLength: 0.004
+    hatchDashGap: 0.003
+    title: 
+    titleColor: {r: 1, g: 1, b: 1, a: 1}
+    titleSizeMM: 6
+    titleOffset: {x: 0, y: 0.003}
+  lowerArea:
+    visible: 1
+    flash: 1
+    flashSpeed: 0.5
+    flashDepth: 0.813
+    lineAnimated: 0
+    lineAnimSpeed: 0.01
+    borderColor: {r: 0.33636454, g: 0.8113208, b: 0.2793699, a: 0.9}
+    borderThickness: 0.001
+    fillColor: {r: 0.3372549, g: 0.8117647, b: 0.2784314, a: 0.06}
+    hatch: 1
+    hatchColor: {r: 0.3372549, g: 0.8117647, b: 0.2784314, a: 0.2}
+    hatchAngle: 125
+    hatchSpacing: 0.006
+    hatchWidth: 0.0006
+    hatchDashed: 0
+    hatchDashLength: 0.004
+    hatchDashGap: 0.003
+    title: <b>Balok Hasil</b>
+    titleColor: {r: 0.3372549, g: 0.8117647, b: 0.2784314, a: 1}
     titleSizeMM: 11
     titleOffset: {x: 0, y: 0.003}

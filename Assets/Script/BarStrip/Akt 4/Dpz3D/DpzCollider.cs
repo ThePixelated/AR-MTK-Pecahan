@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public enum DpzColliderKind { Outer, Inner, Block }
+public enum DpzColliderKind { Outer, Inner, Block, UpperBlock }
 
 public struct DpzHit
 {

@@ -42,6 +42,10 @@ public class WorldDpzDropZone : MonoBehaviour, IFractionDropZone
             bool overInner = hit.kind != DpzColliderKind.Outer;
             dpzView.SetHover(payload.piece, blockIndex, overInner);
         }
+        else if (payload.origin == DragOrigin.KotakA || payload.origin == DragOrigin.KotakB)
+        {
+            dpzView.SetHoverKotak(payload.piece, payload.origin == DragOrigin.KotakA, payload.index);
+        }
         else if (payload.origin == DragOrigin.Dpz && hit.kind == DpzColliderKind.Block)
         {
             dpzView.SetHoverLifted(payload.index, hit.blockIndex);   // gabung antar-balok: hanya yang muat
@@ -70,6 +74,14 @@ public class WorldDpzDropZone : MonoBehaviour, IFractionDropZone
             dpzView.ClearHover();
             if (hit.kind == DpzColliderKind.Block) dpzView.TryMergeBlocks(source, hit.blockIndex);   // tidak valid = batal
             return RejectReason.None;
+        }
+
+        if (payload.origin == DragOrigin.KotakA || payload.origin == DragOrigin.KotakB)
+        {
+            bool fromA = payload.origin == DragOrigin.KotakA;
+            int row = payload.index;
+            dpzView.ClearHover();
+            return dpzView.TryMoveFromKotak(fromA, row);      // di mana pun di area: masuk ke bagian atas
         }
 
         if (payload.origin != DragOrigin.Bank) return RejectReason.None;

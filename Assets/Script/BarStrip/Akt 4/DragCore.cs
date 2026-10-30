@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum DragOrigin { Bank, Dpz }   // Dpz dipakai di step 5
+//public enum DragOrigin { Bank, Dpz }   // Dpz dipakai di step 5
+public enum DragOrigin { Bank, Dpz, KotakA, KotakB }
 
 public readonly struct DragPayload
 {
