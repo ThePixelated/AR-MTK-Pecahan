@@ -83,9 +83,9 @@ public class SimpleConfirmDialog : MonoBehaviour
     // Konfirmasi: YA menjalankan aksi, TIDAK membatalkan (dan menjalankan 'no' kalau diberikan, mis. untuk mengembalikan stepper)
     public void Ask(string message, Action yes, Action no = null) => Show(message, yes, no, true, defaultTitle, defaultYes);
 
-    // Peringatan: satu tombol saja yang menutup popup, tanpa aksi
-    public void Inform(string title, string message, string okLabel = "MENGERTI") =>
-        Show(message, null, null, false, title, okLabel);
+    // Peringatan: satu tombol saja yang menutup popup; onClose dijalankan setelah ditutup
+    public void Inform(string title, string message, string okLabel = "MENGERTI", Action onClose = null) =>
+        Show(message, onClose, null, false, title, okLabel);
 
     void Show(string message, Action yes, Action no, bool showNo, string title, string yesText)
     {

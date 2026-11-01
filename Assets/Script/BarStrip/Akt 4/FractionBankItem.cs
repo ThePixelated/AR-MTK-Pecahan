@@ -21,10 +21,21 @@ public class FractionBankItem : MonoBehaviour,
 
     public void Setup(int den, Activity4Controller owner)
     {
+        Debug.Log(den);
+        Debug.Log(owner);
+
+        Debug.Log(denominator);
         denominator = Mathf.Max(1, den);
+        Debug.Log(denominator);
+
+        Debug.Log(label);
         label.text = FractionFormat.Label(Piece);
+        Debug.Log(label);
+        Debug.Log(label.text);
 
         Color c = owner.Palette.Get(denominator);            // warna data: sama dengan row Kotak dan balok 3D
+        Debug.Log(c);
+
         if (barView) barView.Show(Piece, c);
 
         if (!background) return;

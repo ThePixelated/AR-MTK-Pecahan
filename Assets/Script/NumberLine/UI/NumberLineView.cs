@@ -42,6 +42,18 @@ public class NumberLineView : MonoBehaviour
     [SerializeField] float trailDashLength = 10f;
     [SerializeField] float trailGapLength = 6f;
 
+    [Header("Penanda bersurat (Level 2: A, B, C ...)")]
+    [SerializeField] RectTransform markerPrefab;       // RectTransform dengan TMP_Text anak; kosong = penanda bawaan
+    [SerializeField] float markerY = 12f;              // tinggi penanda bawaan di atas garis
+    [SerializeField] float markerFontSize = 40f;       // hanya penanda bawaan
+    [SerializeField] Color markerColor = Color.white;  // hanya penanda bawaan
+
+    readonly List<RectTransform> markerPool = new List<RectTransform>();
+    readonly List<TMP_Text> markerTexts = new List<TMP_Text>();
+    readonly List<int> markerTicks = new List<int>();
+    readonly List<string> markerNames = new List<string>();
+    bool markersDirty;
+
     class Tick
     {
         public RectTransform rt;
@@ -97,6 +109,7 @@ public class NumberLineView : MonoBehaviour
     void OnEnable()
     {
         structureDirty = true;
+        markersDirty = true;
         layoutDirty = true;
         arcsDirty = true;
         placed = false;
@@ -128,6 +141,9 @@ public class NumberLineView : MonoBehaviour
         config = newConfig;
         structureDirty = true;
         trail.Clear();
+        markerTicks.Clear();
+        markerNames.Clear();
+        markersDirty = true;
         arcsDirty = true;
         if (pionTick > config.MaxTick) pionTick = config.MaxTick;
     }
@@ -202,6 +218,12 @@ public class NumberLineView : MonoBehaviour
         {
             PositionArcs();
             arcsDirty = false;
+        }
+
+        if ((markersDirty || relaid) && LayoutReady)
+        {
+            PositionMarkers();
+            markersDirty = false;
         }
 
         UpdatePion();
@@ -447,5 +469,81 @@ public class NumberLineView : MonoBehaviour
 
         pionTick = tick;
         PionDragged?.Invoke(tick);
+    }
+
+    // Titik bersurat yang tidak bisa disentuh. tick di luar garis (< 0) disembunyikan. Panggil SETELAH SetConfig.
+    public void SetMarkers(IReadOnlyList<int> ticks, IReadOnlyList<string> labels)
+    {
+        markerTicks.Clear();
+        markerNames.Clear();
+        if (ticks != null)
+        {
+            for (int i = 0; i < ticks.Count; i++)
+            {
+                markerTicks.Add(ticks[i]);
+                markerNames.Add(labels != null && i < labels.Count ? labels[i] : NumberLineLabels.Letter(i));
+            }
+        }
+        markersDirty = true;
+    }
+
+    public void ClearMarkers() => SetMarkers(null, null);
+
+    void CreateMarker()
+    {
+        RectTransform rt;
+        if (markerPrefab != null)
+        {
+            rt = Instantiate(markerPrefab, mainLine);
+            rt.localScale = Vector3.one;
+            rt.gameObject.SetActive(true);
+        }
+        else
+        {
+            var go = new GameObject("Marker", typeof(RectTransform));
+            go.transform.SetParent(mainLine, false);
+            rt = (RectTransform)go.transform;
+            rt.sizeDelta = new Vector2(60f, 60f);
+            rt.pivot = new Vector2(0.5f, 0f);
+
+            var tgo = new GameObject("Text", typeof(RectTransform));
+            tgo.transform.SetParent(rt, false);
+            var trt = (RectTransform)tgo.transform;
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+
+            var text = tgo.AddComponent<TextMeshProUGUI>();
+            text.alignment = TextAlignmentOptions.Center;
+            text.fontSize = markerFontSize;
+            text.fontStyle = FontStyles.Bold;
+            text.color = markerColor;
+        }
+
+        foreach (Graphic g in rt.GetComponentsInChildren<Graphic>(true)) g.raycastTarget = false;     // tidak bisa disentuh
+
+        markerPool.Add(rt);
+        markerTexts.Add(rt.GetComponentInChildren<TMP_Text>(true));
+    }
+
+    void PositionMarkers()
+    {
+        int count = markerTicks.Count;
+        while (markerPool.Count < count) CreateMarker();
+
+        float y = markerPrefab != null ? markerPrefab.anchoredPosition.y : markerY;
+        for (int i = 0; i < markerPool.Count; i++)
+        {
+            RectTransform rt = markerPool[i];
+            bool used = i < count && markerTicks[i] >= 0 && markerTicks[i] <= config.MaxTick;
+            if (rt.gameObject.activeSelf != used) rt.gameObject.SetActive(used);
+            if (!used) continue;
+
+            rt.anchorMin = new Vector2(0f, 0.5f);
+            rt.anchorMax = new Vector2(0f, 0.5f);
+            rt.anchoredPosition = new Vector2(OffsetFromLeft(markerTicks[i]), y);
+            if (markerTexts[i]) markerTexts[i].text = markerNames[i];
+        }
+
+        KeepPionOnTop();
     }
 }

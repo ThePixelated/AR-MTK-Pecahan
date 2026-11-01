@@ -12,12 +12,16 @@ public class BuildLogOverlay : MonoBehaviour
     bool open;
     Vector2 scroll;
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Capture()
     {
         buffer.Clear();
         Application.logMessageReceived -= OnLog;
         Application.logMessageReceived += OnLog;
+
+        var go = new GameObject("BuildLogOverlay");
+        DontDestroyOnLoad(go);
+        go.AddComponent<BuildLogOverlay>();
     }
 
     static void OnLog(string message, string stack, LogType type)
@@ -32,6 +36,8 @@ public class BuildLogOverlay : MonoBehaviour
     }
 
     void Awake() => onlyErrorsStatic = onlyErrors;
+
+
 
     void OnGUI()
     {
