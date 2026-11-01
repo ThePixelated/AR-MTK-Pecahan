@@ -39,6 +39,10 @@ public class DpzBlockView : MonoBehaviour
     bool ghostActive;
     float ghostBaseAlpha;
     float ghostPhase;
+    bool useGhostPulseOverride;
+    float ghostPulseSpeedOverride, ghostPulseAmountOverride;
+    bool useAnimOverride;
+    float animOverride;
 
     Color blockColor = Color.white;
     float highlight;       // efektif = terbesar dari hover, terpilih, diangkat
@@ -55,6 +59,12 @@ public class DpzBlockView : MonoBehaviour
     bool placed;           // sudah pernah diletakkan (kemunculan pertama langsung di tempat)
     int previewCell = -1;
     int previewCount = 1;
+
+    bool fromRight;
+    MeshFilter trackFilter;
+
+    bool hadCellColors;
+    float baseHighlight;
 
     public void Init(DpzStyle style, UnitVisualSet visuals, Material decalMaterial, DpzView owner, int layer, DpzColliderKind kind = DpzColliderKind.Block)
     {
@@ -73,7 +83,8 @@ public class DpzBlockView : MonoBehaviour
         var go = new GameObject("Track");
         track = go.transform;
         track.SetParent(transform, false);
-        go.AddComponent<MeshFilter>().sharedMesh = DpzMeshes.TrackQuad();
+        trackFilter = go.AddComponent<MeshFilter>();
+        trackFilter.sharedMesh = DpzMeshes.TrackQuad();
         trackRenderer = go.AddComponent<MeshRenderer>();
         trackRenderer.sharedMaterial = decalMaterial;
         trackRenderer.shadowCastingMode = ShadowCastingMode.Off;
@@ -99,18 +110,20 @@ public class DpzBlockView : MonoBehaviour
 
     float CellHighlight => style.highlightCells ? highlight : 0f;
 
-    public void Show(Fraction piece, int index, Color color, Vector3 localPosition)
+    public void Show(Fraction piece, int index, Color color, Vector3 localPosition, Color[] cellColors = null)
     {
         Index = index;
         isPreview = false;
         colliderTag.blockIndex = index;
-        boxCollider.enabled = true;
+        boxCollider.enabled = interactive;
         desiredPos = localPosition;
         if (!placed || style.reflowSpeed <= 0f) { transform.localPosition = localPosition; placed = true; }   // pertama kali atau tanpa animasi: langsung
 
         bool same = hasPiece && piece.numerator == Piece.numerator
-                             && piece.denominator == Piece.denominator && color == blockColor;
+                             && piece.denominator == Piece.denominator && color == blockColor
+                             && cellColors == null && !hadCellColors;
         Piece = piece; blockColor = color; hasPiece = true;
+        hadCellColors = cellColors != null;
         if (same) return;
 
         SizeCollider();
@@ -130,8 +143,8 @@ public class DpzBlockView : MonoBehaviour
             if (u.activeSelf != on) u.SetActive(on);
             if (i >= n) continue;
 
-            u.transform.localPosition = new Vector3(i * pitch + style.cellGap * 0.5f, style.baseLift, 0f);
-            visuals.Configure(u, spec, color);
+            u.transform.localPosition = new Vector3(CellX(i, d, pitch), style.baseLift, 0f);
+            visuals.Configure(u, spec, cellColors != null && i < cellColors.Length ? cellColors[i] : color);
             visuals.SetHighlight(u, CellHighlight);
         }
 
@@ -160,6 +173,17 @@ public class DpzBlockView : MonoBehaviour
         track.localScale = new Vector3(style.wholeLength, 1f, style.thickness);
         ApplyTrack();
     }
+
+    public void SetFillFromRight(bool value)
+    {
+        if (fromRight == value) return;
+        fromRight = value;
+        if (trackFilter) trackFilter.sharedMesh = value ? DpzMeshes.TrackQuadMirrored() : DpzMeshes.TrackQuad();
+        InvalidateVisual();
+    }
+
+    float CellX(int cell, int denominator, float pitch) =>
+        (fromRight ? denominator - 1 - cell : cell) * pitch + style.cellGap * 0.5f;
 
     // Tandai rentang sel prediksi di track blok ini (startCell < 0 = tidak ada)
     public void SetPreviewRange(int startCell, int count)
@@ -207,7 +231,7 @@ public class DpzBlockView : MonoBehaviour
             if (g.activeSelf != on) g.SetActive(on);
             if (!on) continue;
 
-            g.transform.localPosition = new Vector3((startCell + i) * pitch + style.cellGap * 0.5f, style.baseLift, 0f);
+            g.transform.localPosition = new Vector3(CellX(startCell + i, denominator, pitch), style.baseLift, 0f);
             visuals.ConfigureGhost(g, spec, c, alpha);
         }
 
@@ -248,7 +272,7 @@ public class DpzBlockView : MonoBehaviour
 
     void ApplyEffectiveHighlight()
     {
-        float effective = Mathf.Max(hoverAmount, (selected || lifted) ? 1f : 0f);
+        float effective = Mathf.Max(Mathf.Max(hoverAmount, baseHighlight), (selected || lifted) ? 1f : 0f);
         if (Mathf.Approximately(effective, highlight)) return;
         highlight = effective;
 
@@ -270,7 +294,8 @@ public class DpzBlockView : MonoBehaviour
         line = Color.Lerp(line, Color.white, highlight * style.highlightBrighten);
 
         bool highlighted = highlight > 0.001f;
-        animSpeed = (style.animateOnlyWhenHighlighted && !highlighted) ? 0f : style.animationSpeed;
+        animSpeed = useAnimOverride ? animOverride
+                  : ((style.animateOnlyWhenHighlighted && !highlighted) ? 0f : style.animationSpeed);
         animating = Mathf.Abs(animSpeed) > 0.0001f;
 
         trackRenderer.GetPropertyBlock(mpb);
@@ -310,12 +335,99 @@ public class DpzBlockView : MonoBehaviour
             trackRenderer.SetPropertyBlock(mpb);
         }
 
-        if (ghostActive && style.ghostPulseSpeed > 0.001f)
+        float pulseSpeed = useGhostPulseOverride ? ghostPulseSpeedOverride : style.ghostPulseSpeed;
+        float pulseAmount = useGhostPulseOverride ? ghostPulseAmountOverride : style.ghostPulseAmount;
+        if (ghostActive && pulseSpeed > 0.001f)
         {
-            ghostPhase += Time.unscaledDeltaTime * style.ghostPulseSpeed * Mathf.PI * 2f;
+            ghostPhase += Time.unscaledDeltaTime * pulseSpeed * Mathf.PI * 2f;
             float k = 0.5f + 0.5f * Mathf.Sin(ghostPhase);
-            float alpha = ghostBaseAlpha * (1f - style.ghostPulseAmount * k);
+            float alpha = ghostBaseAlpha * (1f - pulseAmount * k);
             for (int i = 0; i < ghostCount && i < ghostUnits.Count; i++) visuals.SetGhostAlpha(ghostUnits[i], alpha);
         }
+    }
+
+    // Balok carry: tidak bisa disentuh; tampilan dan efeknya (opacity, denyut, highlight, garis bergerak) diatur dari DpzStyle
+    //public void ShowCarry(int index, Color color, Vector3 localPosition)
+    //{
+    //    SetInteractive(false);
+    //    InvalidateVisual();                       // warna bisa berubah (campuran): gambar ulang penuh
+    //    Show(Fraction.Whole(1), index, color, localPosition);
+
+    //    if (style.carryTranslucent)
+    //    {
+    //        foreach (GameObject u in units) if (u.activeSelf) u.SetActive(false);    // ghost menggantikan sel padat
+    //        ShowGhostUnits(0, 1, 1, color, style.carryOpacity);
+    //    }
+    //    else
+    //    {
+    //        HideGhostUnit();
+    //    }
+
+    //    useGhostPulseOverride = style.carryTranslucent && style.carryPulse;
+    //    ghostPulseSpeedOverride = style.carryPulseSpeed;
+    //    ghostPulseAmountOverride = style.carryPulseDepth;
+
+    //    useAnimOverride = true;
+    //    animOverride = style.carryLineAnimated ? style.carryLineAnimSpeed : 0f;
+
+    //    hoverAmount = style.carryHighlight ? style.carryHighlightAmount : 0f;
+    //    highlight = -1f;                          // paksa penerapan ulang
+    //    ApplyEffectiveHighlight();
+    //    ApplyTrack();
+    //}
+
+    // Balok gabungan di bagian atas: tiap sel terisi diwarnai pecahan asalnya; balok carry mengikuti gaya carry di DpzStyle
+    public void ShowComposed(Fraction piece, int index, Color[] cellColors, Vector3 localPosition, bool carry)
+    {
+        SetInteractive(true);
+        Color first = cellColors != null && cellColors.Length > 0 ? cellColors[0] : Color.white;
+        Show(piece, index, first, localPosition, cellColors);
+
+        baseHighlight = carry && style.carryHighlight ? style.carryHighlightAmount : 0f;
+        useAnimOverride = carry;
+        animOverride = style.carryLineAnimated ? style.carryLineAnimSpeed : 0f;
+        useGhostPulseOverride = carry && style.carryTranslucent && style.carryPulse;
+        ghostPulseSpeedOverride = style.carryPulseSpeed;
+        ghostPulseAmountOverride = style.carryPulseDepth;
+
+        if (carry && style.carryTranslucent)
+        {
+            foreach (GameObject u in units) if (u.activeSelf) u.SetActive(false);   // ghost menggantikan sel padat
+            ShowGhostCells(cellColors, (int)piece.denominator, style.carryOpacity);
+        }
+        else
+        {
+            HideGhostUnit();
+        }
+
+        highlight = -1f;                       // paksa penerapan ulang
+        ApplyEffectiveHighlight();
+        ApplyTrack();
+    }
+
+    // Ghost satu sel per warna, mulai dari sel pertama
+    public void ShowGhostCells(Color[] colors, int denominator, float alpha)
+    {
+        int count = colors != null ? colors.Length : 0;
+        while (ghostUnits.Count < count) ghostUnits.Add(visuals.CreateGhost(transform));
+
+        float pitch = style.wholeLength / denominator;
+        var spec = new UnitCellSpec(Mathf.Max(0.0001f, pitch - style.cellGap), style.thickness, style.height, style.inset);
+
+        for (int i = 0; i < ghostUnits.Count; i++)
+        {
+            GameObject g = ghostUnits[i];
+            bool on = i < count;
+            if (g.activeSelf != on) g.SetActive(on);
+            if (!on) continue;
+
+            g.transform.localPosition = new Vector3(CellX(i, denominator, pitch), style.baseLift, 0f);
+            visuals.ConfigureGhost(g, spec, style.ghostForceColor ? style.ghostColor : colors[i], alpha);
+        }
+
+        ghostCount = count;
+        ghostActive = true;
+        ghostBaseAlpha = alpha;
+        ghostPhase = 0f;
     }
 }

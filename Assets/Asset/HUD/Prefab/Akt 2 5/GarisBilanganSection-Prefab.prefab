@@ -119,19 +119,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 9031415779334328529}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: InputHandlerGarisBilangan, Assembly-CSharp
-        m_MethodName: MoveBackward
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!1 &492986160786958942
 GameObject:
   m_ObjectHideFlags: 0
@@ -413,19 +401,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 7082311040856419565}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: InputHandlerGarisBilangan, Assembly-CSharp
-        m_MethodName: MoveForward
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!1 &1794633428736198526
 GameObject:
   m_ObjectHideFlags: 0
@@ -877,7 +853,23 @@ MonoBehaviour:
   wholeTickPrefab: {fileID: 6981552877036119259}
   fractionTickPrefab: {fileID: 595566869293477341}
   pion: {fileID: 7491311201845941913}
+  moveMode: 0
   pionSmoothing: 30
+  hopDuration: 0.18
+  longHopDuration: 0.4
+  hopHeight: 40
+  showTrail: 0
+  trailArcPrefab: {fileID: 0}
+  trailHeight: 36
+  trailMinHeight: 8
+  trailYOffset: 4
+  trailForwardColor: {r: 0.2, g: 0.7, b: 0.3, a: 0.9}
+  trailBackwardColor: {r: 0.9, g: 0.35, b: 0.3, a: 0.9}
+  maxTrailArcs: 60
+  trailThickness: 4
+  trailDashed: 0
+  trailDashLength: 10
+  trailGapLength: 6
 --- !u!1 &6158200068453239972
 GameObject:
   m_ObjectHideFlags: 0

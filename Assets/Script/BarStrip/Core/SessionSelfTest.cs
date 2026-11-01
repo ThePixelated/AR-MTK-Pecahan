@@ -283,8 +283,8 @@ public class SessionSelfTest : MonoBehaviour
         Check(s23.B.Count == 1 && s23.B.Pieces[0].numerator == 4, "B = [4/4]");
 
         // 24. Penolakan dan transisi fase
-        Check(new FractionSession(Operation.Subtract).TryMoveToArea(true, 0) == RejectReason.SoalBelumDibentuk, "Subtract: pindah sebelum - ditolak"); 
-        Check(SubtractExample().TryMoveToArea(true, 0) == RejectReason.AreaTidakTersedia, "area dua bagian hanya untuk Add");
+        Check(new FractionSession(Operation.Subtract).TryMoveToArea(true, 0) == RejectReason.SoalBelumDibentuk, "Subtract: pindah sebelum - ditolak");
+        //Check(new FractionSession(Operation.Subtract).TryMoveToArea(true, 0) == RejectReason.SoalBelumDibentuk, "Subtract: pindah sebelum - ditolak");
         var s24 = ClientExample();
         Check(s24.TryMoveToArea(true, 9) == RejectReason.AreaTidakTersedia && s24.TryMoveToArea(false, -1) == RejectReason.AreaTidakTersedia,
               "indeks row yang tidak ada ditolak");
@@ -317,8 +317,10 @@ public class SessionSelfTest : MonoBehaviour
         Check(s27.Upper.Total().ValueEquals(new Fraction(7, 4)), "total bertanda area atas = 7/4");
         Check(s27.Upper.CarryWholes == -1 && s27.Upper.WholeCount == 1, "1/2 - 3/4 = -1/4: pinjam 1, tersisa 1 bilangan bulat");
         Check(s27.Check() == CheckVerdict.Kurang, "sisa belum diisi: Kurang");
-        for (int i = 0; i < 3; i++) s27.TryDropToDpz(U(4));
-        Check(s27.Check() == CheckVerdict.Benar, "sisa 3/4 dan bilangan bulat 1 -> Benar");
+        for (int i = 0; i < 1; i++) s27.TryDropToDpz(U(4));
+        Check(s27.Check() == CheckVerdict.Benar, "komplemen 1/4 dan bilangan bulat 1 -> Benar");
+
+
 
         Debug.Log(failed == 0 ? "SEMUA LOLOS (session)" : failed + " tes GAGAL (session)");
     }

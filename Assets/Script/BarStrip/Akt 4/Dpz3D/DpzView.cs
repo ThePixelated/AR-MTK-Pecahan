@@ -45,6 +45,7 @@ public class DpzView : MonoBehaviour
     [SerializeField] LayerMask dpzMask;                // SATU layer khusus dpz (buat di Tags and Layers)
     [SerializeField] float colliderHeight = 0.02f;
     [SerializeField] float raycastMaxDistance = 5f;
+    [SerializeField] bool closeSelectionOnUpdate = true;   // true: panel aksi menutup setiap ada perubahan area; false: hanya saat jumlah blok berubah
 
     struct SectionRect { public Vector2 center; public Vector2 size; }   // center = (x, z)
 
@@ -61,7 +62,9 @@ public class DpzView : MonoBehaviour
     bool bound;
     readonly List<DpzBlockView> blocks = new List<DpzBlockView>();        // bagian bawah (dpz)
     readonly List<DpzBlockView> upperBlocks = new List<DpzBlockView>();   // bagian atas
-    DpzBlockView carryBlock;
+    //readonly List<DpzBlockView> carryBlocks = new List<DpzBlockView>();FC
+    readonly List<DpzBlockView> carryBlocks = new List<DpzBlockView>();
+
     int highlightedBlock = -1;
     int liftedBlock = -1;
     int selectedBlock = -1;
@@ -165,8 +168,10 @@ public class DpzView : MonoBehaviour
     }
 
     // ---------- tata letak ----------
-    bool CarryVisible => style.showCarryBlock && session != null && session.Upper.CarryWholes > 0;
-    int UpperVisualCount => session.Upper.Count + (CarryVisible ? 1 : 0);
+    //int CarryCount => (style.showCarryBlock && session != null) ? (int)Mathf.Clamp(session.Upper.CarryWholes, 0, 4) : 0;
+    //int UpperVisualCount => session.Upper.Count + CarryCount;
+
+    int UpperVisualCount => session.Composed.Count;
 
     int UpperRowsFor(int visualCount)
     {
@@ -219,7 +224,7 @@ public class DpzView : MonoBehaviour
         upperTarget = ComputeSection(0, layoutUpperRows);
         lowerTarget = ComputeSection(LowerSlot, 1);
 
-        if (changed) RelayoutLower();
+        if (changed) { ClearSelection(); RelayoutLower(); }
         if (bound) ApplyTitles();
     }
 
@@ -236,6 +241,7 @@ public class DpzView : MonoBehaviour
         go.transform.SetParent(transform, false);
         var b = go.AddComponent<DpzBlockView>();
         b.Init(style, visuals, decalMaterial, this, DpzLayer, kind);
+        b.SetFillFromRight(session != null && session.Op == Operation.Subtract);
         return b;
     }
 
@@ -244,12 +250,11 @@ public class DpzView : MonoBehaviour
     {
         HideUpperPreview();
         predictedUpperExtra = false;
+        if (closeSelectionOnUpdate) ClearSelection();
 
-        var list = session.Upper.Blocks;
-        int count = list.Count;
-        int oldCount = upperBlocks.Count;
-        int removedAt = session.Upper.LastRemovedIndex;
-        bool reflow = style.reflowSpeed > 0f && removedAt >= 0 && count == oldCount - 1;
+        var composed = session.Composed;
+        var raw = session.Upper.Blocks;
+        int count = composed.Count;
 
         while (upperBlocks.Count > count)
         {
@@ -263,37 +268,86 @@ public class DpzView : MonoBehaviour
             if (i >= upperBlocks.Count) upperBlocks.Add(null);
             if (!upperBlocks[i]) upperBlocks[i] = CreateBlock(DpzColliderKind.UpperBlock);
 
-            AreaBlock b = list[i];
-            Color c = controller.Palette.Get(b.piece.denominator);
-            if (b.subtracted) c = Color.Lerp(c, style.subtractColor, style.subtractBlend);
-            upperBlocks[i].Show(b.piece, i, c, BlockOrigin(i));
+            ComposedBlock cb = composed[i];
+            upperBlocks[i].ShowComposed(cb.piece, i, CellColors(cb, raw), BlockOrigin(i), cb.kind == ComposedKind.Carry);
         }
 
-        if (reflow)
-            for (int i = removedAt; i < count; i++) upperBlocks[i].AnimateFrom(BlockOrigin(i + 1));
-
-        RefreshCarry();
         RecomputeTarget();
     }
 
-    // Balok utuh otomatis dari jumlah row sebagian yang melewati 1; tidak bisa disentuh
-    void RefreshCarry()
+    // Warna tiap sel = warna pecahan asalnya (bukan warna satuan bank); balok yang dikurangkan diberi tint
+    Color[] CellColors(ComposedBlock cb, IReadOnlyList<AreaBlock> raw)
     {
-        if (!CarryVisible)
+        var colors = new Color[cb.cellSource.Length];
+        for (int k = 0; k < colors.Length; k++)
         {
-            if (carryBlock) carryBlock.gameObject.SetActive(false);
-            return;
+            AreaBlock b = raw[cb.cellSource[k]];
+            Color c = controller.Palette.Get(b.piece.denominator);
+            if (b.subtracted) c = Color.Lerp(c, style.subtractColor, style.subtractBlend);
+            colors[k] = (cb.kind == ComposedKind.Carry && !style.carryUseSourceColors) ? style.carryColor : c;
         }
-
-        if (!carryBlock)
-        {
-            carryBlock = CreateBlock(DpzColliderKind.UpperBlock);
-            carryBlock.name = "DpzCarry";
-            carryBlock.SetInteractive(false);
-        }
-        carryBlock.gameObject.SetActive(true);
-        carryBlock.Show(Fraction.Whole(1), session.Upper.Count, style.carryColor, BlockOrigin(session.Upper.Count));
+        return colors;
     }
+
+    // Balok utuh otomatis dari jumlah row sebagian yang melewati 1; tidak bisa disentuh
+    // Balok utuh otomatis dari jumlah row sebagian yang melewati 1; tidak bisa disentuh
+    //void RefreshCarry()
+    //{
+    //    int need = CarryCount;
+
+    //    while (carryBlocks.Count < need)
+    //    {
+    //        DpzBlockView b = CreateBlock(DpzColliderKind.UpperBlock);
+    //        b.name = "DpzCarry";
+    //        b.SetInteractive(false);
+    //        carryBlocks.Add(b);
+    //    }
+
+    //    for (int k = 0; k < carryBlocks.Count; k++)
+    //    {
+    //        DpzBlockView b = carryBlocks[k];
+    //        bool on = k < need;
+    //        if (b.gameObject.activeSelf != on) b.gameObject.SetActive(on);
+    //        if (!on) continue;
+
+    //        Color color = style.carryMixedColor ? CarryMixColor(k) : style.carryColor;
+    //        b.ShowCarry(session.Upper.Count + k, color, BlockOrigin(session.Upper.Count + k));
+    //    }
+    //}
+
+    // Warna carry ke-k: row sebagian di area atas (urutan tampil) mengisi carry satu per satu;
+    // tiap carry diwarnai rata-rata berbobot (menurut nilai) dari warna pecahan yang mengisinya
+    //Color CarryMixColor(int k)
+    //{
+    //    int current = 0;
+    //    float weight = 0f;
+    //    Color accum = Color.black;
+
+    //    foreach (AreaBlock b in session.Upper.Blocks)
+    //    {
+    //        if (b.subtracted || b.piece.numerator == b.piece.denominator) continue;     // hanya row sebagian yang membentuk carry
+
+    //        float value = (float)b.piece.numerator / b.piece.denominator;
+    //        Color c = controller.Palette.Get(b.piece.denominator);
+
+    //        while (value > 1e-5f)
+    //        {
+    //            float take = Mathf.Min(value, 1f - weight);
+    //            if (current == k) accum += c * take;
+    //            weight += take;
+    //            value -= take;
+
+    //            if (weight >= 1f - 1e-5f)
+    //            {
+    //                if (current == k) return new Color(accum.r, accum.g, accum.b, 1f);
+    //                current++;
+    //                weight = 0f;
+    //                accum = Color.black;
+    //            }
+    //        }
+    //    }
+    //    return style.carryColor;      // tidak seharusnya terjadi: carry selalu terisi penuh oleh pecahan
+    //}
 
     // ---------- data -> tampilan: bagian bawah ----------
     void RefreshLower()
@@ -332,7 +386,7 @@ public class DpzView : MonoBehaviour
         if (liftedBlock >= count) liftedBlock = -1;
 
         // Pilihan dicabut kalau jumlah blok berubah; tetap kalau hanya isi blok yang berubah (-1 satuan, merge)
-        if (selectedBlock >= 0 && (oldCount != count || selectedBlock >= count)) SetSelection(-1);
+        if (selectedBlock >= 0 && (closeSelectionOnUpdate || oldCount != count || selectedBlock >= count)) SetSelection(-1);
     }
 
     // Bagian atas bertambah atau berkurang: bagian bawah meluncur ke slot barunya
@@ -441,7 +495,7 @@ public class DpzView : MonoBehaviour
         bound ? session.TryMoveToArea(fromA, rowIndex) : RejectReason.SoalBelumDibentuk;
 
     // Balok bagian atas dikembalikan ke Kotak asalnya
-    public bool ReturnUpperBlock(int index) => bound && session.ReturnToKotak(index);
+    public bool ReturnUpperBlock(int composedIndex) => bound && session.ReturnComposed(composedIndex);
 
     // Gabung antar-blok dpz (balok yang diangkat dilepas di atas balok lain); mengembalikan jumlah satuan yang pindah
     public int TryMergeBlocks(int sourceIndex, int targetIndex) =>
@@ -790,7 +844,7 @@ public class DpzView : MonoBehaviour
     {
         foreach (var b in blocks) if (b) b.InvalidateVisual();
         foreach (var b in upperBlocks) if (b) b.InvalidateVisual();
-        if (carryBlock) carryBlock.InvalidateVisual();
+        //foreach (var b in carryBlocks) if (b) b.InvalidateVisual();
         if (!bound) return;
         RefreshUpper();
         RefreshLower();
@@ -807,6 +861,6 @@ public class DpzView : MonoBehaviour
 
     [ContextMenu("Debug: Cetak status")]
     void DebugPrintState() =>
-        Debug.Log($"[Dpz] bound={bound} atas={upperBlocks.Count} bawah={blocks.Count} barisAtas={layoutUpperRows} carry={CarryVisible} " +
+        Debug.Log($"[Dpz] bound={bound} atas={upperBlocks.Count} bawah={blocks.Count} barisAtas={layoutUpperRows} carry={session.Composed.Count} " +
                   $"dpzMask={dpzMask.value} layer={DpzLayer} outerCol={(outerCol != null)} innerCol={(innerCol != null)}", this);
 }

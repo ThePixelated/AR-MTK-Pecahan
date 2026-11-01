@@ -102,12 +102,15 @@ public static class GameRules
         return IsUnitUniform(dpz) ? CheckVerdict.Benar : CheckVerdict.NilaiPasSatuanBeda;
     }
 
-    // Add: sisa pecahan hasil (bagian di bawah 1) dibandingkan dengan nilai area bawah. Opsional: bilangan bulat area atas juga dicek.
+    // Add: sisa pecahan hasil (bagian di bawah 1) dibandingkan dengan nilai area bawah.
+    // Subtract: komplemen dari sisa pecahan (yang masih kurang agar bulat) yang dicari di area bawah.
+    // Opsional: bilangan bulat area atas juga dicek.
     public static CheckVerdict CheckAreaResult(Problem problem, AreaContents upper, KotakContents lower, bool checkWholes)
     {
-        Fraction expectedRemainder = problem.result - Fraction.Whole(problem.result.WholePart);
+        Fraction remainder = problem.result - Fraction.Whole(problem.result.WholePart);
+        Fraction expected = problem.op == Operation.Add || remainder.Sign == 0 ? remainder : Fraction.Whole(1) - remainder;
 
-        int cmp = lower.Total().CompareTo(expectedRemainder);
+        int cmp = lower.Total().CompareTo(expected);
         if (cmp < 0) return CheckVerdict.Kurang;
         if (cmp > 0) return CheckVerdict.Kelebihan;
 

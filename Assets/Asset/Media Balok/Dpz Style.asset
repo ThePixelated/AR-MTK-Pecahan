@@ -19,7 +19,7 @@ MonoBehaviour:
   inset: 0
   rowGap: 0.01
   innerPadding: 0.01
-  outerMargin: 0.015
+  outerMargin: 0.03
   baseLift: 0.001
   reflowSpeed: 14
   minRows: 3
@@ -51,6 +51,16 @@ MonoBehaviour:
   sectionGapRows: 1
   showCarryBlock: 1
   carryColor: {r: 1, g: 0.85, b: 0.3, a: 1}
+  carryMixedColor: 0
+  carryTranslucent: 0
+  carryOpacity: 0.6
+  carryPulse: 0
+  carryPulseSpeed: 1.2
+  carryPulseDepth: 0.5
+  carryHighlight: 1
+  carryHighlightAmount: 1
+  carryLineAnimated: 0
+  carryLineAnimSpeed: 0.02
   subtractColor: {r: 0.9, g: 0.35, b: 0.3, a: 1}
   subtractBlend: 0.514
   outerArea:

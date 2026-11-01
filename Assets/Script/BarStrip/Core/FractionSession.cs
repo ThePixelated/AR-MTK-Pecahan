@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 public enum Phase { Menyusun, Merakit, Dicek }
 
@@ -9,10 +10,16 @@ public class FractionSession
     public KotakContents A { get; } = new KotakContents();
     public KotakContents B { get; } = new KotakContents();
 
+
     // Area Balok. Add: Upper = balok dari Kotak, Dpz (= Lower) = balok bank untuk sisa. Subtract: hanya Dpz (perilaku lama sampai 4R-e).
     public AreaContents Upper { get; } = new AreaContents();
     public KotakContents Dpz { get; } = new KotakContents();
     public KotakContents Lower => Dpz;
+    
+    // Balok area atas yang digambar (hasil AreaComposer); selalu mutakhir saat Upper.Changed diterima pelihat
+    public IReadOnlyList<ComposedBlock> Composed => composed;
+    readonly List<ComposedBlock> composed = new List<ComposedBlock>();
+    
 
     public Phase CurrentPhase { get; private set; } = Phase.Menyusun;
     public Problem Current { get; private set; }            // valid kalau CurrentPhase != Menyusun
@@ -32,6 +39,7 @@ public class FractionSession
     {
         Op = op;
         Options = options ?? new SessionOptions();
+        Upper.Changed += RecomputeComposed;
         A.Changed += OnKotakChanged;
         B.Changed += OnKotakChanged;
         Dpz.Changed += OnDpzChanged;
@@ -41,6 +49,38 @@ public class FractionSession
     bool IsSubtracted(bool fromA) => Op == Operation.Subtract && !fromA;
 
     KotakContents Side(bool isA) => isA ? A : B;
+
+    void RecomputeComposed()
+    {
+        composed.Clear();
+        composed.AddRange(AreaComposer.Compose(Op, Upper.Blocks));
+    }
+
+    // Tap balok gabungan: semua row yang membentuknya (dan balok lain yang berbagi sumber dengannya) kembali ke Kotak asalnya
+    public bool ReturnComposed(int composedIndex)
+    {
+        if (composedIndex < 0 || composedIndex >= composed.Count) return false;
+
+        var set = new HashSet<int>(composed[composedIndex].sources);
+        bool grew;
+        do
+        {
+            grew = false;
+            foreach (ComposedBlock c in composed)
+            {
+                bool touches = false;
+                foreach (int s in c.sources) if (set.Contains(s)) { touches = true; break; }
+                if (!touches) continue;
+                foreach (int s in c.sources) if (set.Add(s)) grew = true;
+            }
+        } while (grew);
+
+        var order = new List<int>(set);
+        order.Sort();
+        for (int i = order.Count - 1; i >= 0; i--) ReturnBlock(order[i]);     // dari belakang supaya indeks tidak bergeser
+        AfterAreaEdit();
+        return true;
+    }
 
     // ---- Kotak A/B ----
     // Cek aturan tanpa mengubah apa pun

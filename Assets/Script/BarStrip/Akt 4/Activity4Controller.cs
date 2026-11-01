@@ -5,6 +5,8 @@ using UnityEngine;
 // Controller halaman Media 4 (Add) dan Media 6 (Subtract). Satu instance per halaman.
 public class Activity4Controller : MonoBehaviour
 {
+
+    [SerializeField] TextMeshProUGUI test;
     [SerializeField] Operation operation = Operation.Add;    // Media 6: Subtract
     [SerializeField] FractionPalette palette;
     [SerializeField] Transform bankContent;
@@ -22,8 +24,20 @@ public class Activity4Controller : MonoBehaviour
 
     void Awake()
     {
-        if (commitLabel) commitLabel.text = operation == Operation.Add ? "+" : "-";
-        BuildBank();
+        if (test) test.text = "Awake mulai";                                 // baris PERTAMA, sebelum apa pun
+        Debug.Log($"[Akt4] Awake {name} | aktif={gameObject.activeInHierarchy} | operasi={operation}", this);
+
+        try
+        {
+            if (commitLabel) commitLabel.text = operation == Operation.Add ? "+" : "-";
+            BuildBank();
+            if (test) test.text += " | bank OK";
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogException(e, this);
+            if (test) test.text = "ERR: " + e.GetType().Name + " - " + e.Message;
+        }
     }
 
     // Objek dunia mengikuti halaman: tidak ada dua aktivitas yang berebut input

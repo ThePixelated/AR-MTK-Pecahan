@@ -93,10 +93,22 @@ public class DpzStyle : ScriptableObject
     [Header("Area dua bagian: atas (balok dari Kotak) dan bawah (tebakan sisa)")]
     public float sectionPadding = 0.003f;             // jarak isi ke tepi tiap bagian (meter)
     [Min(0)] public int sectionGapRows = 1;           // baris kosong di antara bagian atas dan bawah
-    public bool showCarryBlock = true;                // balok utuh otomatis dari penjumlahan pecahan (5/4 -> 1)
-    public Color carryColor = new Color(1f, 0.85f, 0.3f, 1f);
+
+    [Header("Balok carry (utuh otomatis dari jumlah pecahan)")]
+    public bool carryUseSourceColors = true;                           // true: tiap sel berwarna pecahan asalnya; false: seluruh balok memakai Carry Color
+    public Color carryColor = new Color(1f, 0.85f, 0.3f, 1f);          // warna kuning bawaan
+    public bool carryTranslucent = false;                              // true: digambar semi-transparan
+    [Range(0f, 1f)] public float carryOpacity = 0.6f;                  // opacity (hanya saat Translucent)
+    public bool carryPulse = false;                                    // opacity berdenyut (hanya saat Translucent)
+    public float carryPulseSpeed = 1.2f;                               // Hz
+    [Range(0f, 1f)] public float carryPulseDepth = 0.5f;
+    public bool carryHighlight = true;                                 // garis lantai disorot
+    [Range(0f, 1f)] public float carryHighlightAmount = 1f;
+    public bool carryLineAnimated = false;                             // garis lantai bergerak
+    public float carryLineAnimSpeed = 0.02f;                           // meter per detik
     public Color subtractColor = new Color(0.9f, 0.35f, 0.3f, 1f);   // tint balok yang dikurangkan (Media 6)
     [Range(0f, 1f)] public float subtractBlend = 0.5f;
+    //public bool showCarryBlock = true;
 
     [Header("Area (shader DpzArea): konfigurasi terpisah luar dan dalam")]
     public DpzAreaStyle outerArea = new DpzAreaStyle

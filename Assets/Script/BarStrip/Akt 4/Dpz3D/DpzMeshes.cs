@@ -5,9 +5,26 @@ public static class DpzMeshes
 {
     static readonly Dictionary<(int, int, int, int), Mesh> prisms = new Dictionary<(int, int, int, int), Mesh>();
     static Mesh trackQuad;
+    static Mesh trackQuadMirrored;
+
+    // di ResetStatics():  trackQuadMirrored = null;
+
+    // Sama dengan TrackQuad, tapi U dibalik: sel terisi mulai dari sisi kanan (Media 6)
+    public static Mesh TrackQuadMirrored()
+    {
+        if (trackQuadMirrored) return trackQuadMirrored;
+        var m = new Mesh { name = "TrackQuadMirrored" };
+        m.vertices = new[] { new Vector3(0, 0, 0), new Vector3(1, 0, 0), new Vector3(1, 0, -1), new Vector3(0, 0, -1) };
+        m.normals = new[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up };
+        m.uv = new[] { new Vector2(1, 0), new Vector2(0, 0), new Vector2(0, 1), new Vector2(1, 1) };
+        m.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+        m.RecalculateBounds();
+        trackQuadMirrored = m;
+        return m;
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void ResetStatics() { prisms.Clear(); trackQuad = null; }
+    static void ResetStatics() { prisms.Clear(); trackQuad = null; trackQuadMirrored = null; }
 
     static int Q(float meters) => Mathf.RoundToInt(meters * 100000f);   // presisi 0,01 mm
 
@@ -52,6 +69,7 @@ public static class DpzMeshes
         trackQuad = m;
         return m;
     }
+
 
     // a,b,c,d berurutan mengelilingi sisi; arah segitiga disesuaikan otomatis supaya menghadap `normal`
     static void AddQuad(List<Vector3> v, List<Vector3> n, List<int> t,
