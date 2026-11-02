@@ -1,0 +1,194 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fb9725eaa88ef54f8e1e072cdb63b33, type: 3}
+  m_Name: Level2
+  m_EditorClassIdentifier: Assembly-CSharp::NumberLineLevelData
+  levelTitle: Level 2
+  stayUntilCorrect: 1
+  questions:
+  - kind: 3
+    text: Berapa nilai A, B, dan C pada garis bilangan berikut?
+    image: {fileID: 0}
+    presetLength: 2
+    presetPartisi: 4
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers:
+    - whole: 0
+      numerator: 1
+      denominator: 4
+    - whole: 0
+      numerator: 3
+      denominator: 4
+    - whole: 1
+      numerator: 2
+      denominator: 4
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+  - kind: 3
+    text: Berapa nilai A dan B pada garis bilangan berikut?
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers:
+    - whole: 0
+      numerator: 2
+      denominator: 5
+    - whole: 0
+      numerator: 4
+      denominator: 5
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+  - kind: 3
+    text: Tentukan nilai pecahan yang ditunjukkan huruf A, B, dan C.
+    image: {fileID: 0}
+    presetLength: 3
+    presetPartisi: 3
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers:
+    - whole: 0
+      numerator: 1
+      denominator: 3
+    - whole: 1
+      numerator: 2
+      denominator: 3
+    - whole: 2
+      numerator: 1
+      denominator: 3
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+  - kind: 3
+    text: Berapa nilai A, B, dan C pada garis bilangan berikut?
+    image: {fileID: 0}
+    presetLength: 2
+    presetPartisi: 6
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers:
+    - whole: 0
+      numerator: 1
+      denominator: 6
+    - whole: 0
+      numerator: 3
+      denominator: 6
+    - whole: 1
+      numerator: 5
+      denominator: 6
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+  - kind: 3
+    text: Tentukan nilai pecahan yang ditunjukkan huruf A sampai C.
+    image: {fileID: 0}
+    presetLength: 2
+    presetPartisi: 5
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers:
+    - whole: 0
+      numerator: 1
+      denominator: 5
+    - whole: 0
+      numerator: 3
+      denominator: 5
+    - whole: 1
+      numerator: 0
+      denominator: 1
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0

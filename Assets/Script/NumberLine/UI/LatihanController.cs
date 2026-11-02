@@ -415,7 +415,8 @@ public class LatihanController : MonoBehaviour
 
         float progress = Session.QuestionCount == 0 ? 0f
             : (Session.QuestionIndex + (Session.CanAdvance ? 1 : 0)) / (float)Session.QuestionCount;
-        if (progressSlider) progressSlider.SetValueWithoutNotify(progress);
+
+        if (progressSlider) progressSlider.value = progress;
         if (progressFill) progressFill.fillAmount = progress;
 
         int level = Session.CurrentLevel;

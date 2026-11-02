@@ -20,6 +20,7 @@ public class TrialGridView : MonoBehaviour
     [SerializeField] string waterSpriteName = "air";                    // nama sprite di TMP Sprite Asset
     [SerializeField] string syrupSpriteName = "sirup";
     [SerializeField] float fillSpeed = 1.2f;                            // level naik saat wadah baru muncul (rasio per detik)
+    [SerializeField] Vector3 labelEuler = new Vector3(60f, 0f, 0f);   // arah label tetap (derajat, relatif terhadap grid); tidak mengikuti kamera
 
     class Item
     {
@@ -67,6 +68,7 @@ public class TrialGridView : MonoBehaviour
         GameObject label = Instantiate(labelPrefab, item.root.transform);
         label.transform.localPosition = labelOffset;
         item.label = label.GetComponentInChildren<TMP_Text>(true);
+        label.transform.localRotation = Quaternion.Euler(labelEuler);
         return item;
     }
 

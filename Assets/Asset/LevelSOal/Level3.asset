@@ -1,0 +1,154 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fb9725eaa88ef54f8e1e072cdb63b33, type: 3}
+  m_Name: Level3
+  m_EditorClassIdentifier: Assembly-CSharp::NumberLineLevelData
+  levelTitle: Level 3
+  stayUntilCorrect: 1
+  questions:
+  - kind: 4
+    text: Manakah yang lebih dekat dengan 1/2, 3/8 atau 7/8? Tulis pecahan yang lebih
+      dekat.
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 3
+      denominator: 8
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+  - kind: 4
+    text: Sebutkan satu pecahan yang tepat berada di antara 1/2 dan 3/4.
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers: []
+    rule: 1
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 1
+      denominator: 2
+    upperBound:
+      whole: 0
+      numerator: 3
+      denominator: 4
+  - kind: 4
+    text: Manakah yang lebih dekat dengan 1, 5/6 atau 3/4? Tulis pecahan yang lebih
+      dekat.
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 5
+      denominator: 6
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+  - kind: 4
+    text: Sebutkan satu pecahan yang lebih besar dari 1/3 dan lebih kecil dari 2/3.
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers: []
+    rule: 1
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 1
+      denominator: 3
+    upperBound:
+      whole: 0
+      numerator: 2
+      denominator: 3
+  - kind: 4
+    text: Sebutkan satu bilangan campuran yang berada di antara 1 1/4 dan 1 3/4.
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers: []
+    rule: 1
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 1
+      numerator: 1
+      denominator: 4
+    upperBound:
+      whole: 1
+      numerator: 3
+      denominator: 4

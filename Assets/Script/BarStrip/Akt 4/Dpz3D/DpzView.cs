@@ -241,7 +241,7 @@ public class DpzView : MonoBehaviour
         go.transform.SetParent(transform, false);
         var b = go.AddComponent<DpzBlockView>();
         b.Init(style, visuals, decalMaterial, this, DpzLayer, kind);
-        b.SetFillFromRight(session != null && session.Op == Operation.Subtract);
+        b.SetFillFromRight(kind == DpzColliderKind.UpperBlock && session != null && session.Op == Operation.Subtract);
         return b;
     }
 

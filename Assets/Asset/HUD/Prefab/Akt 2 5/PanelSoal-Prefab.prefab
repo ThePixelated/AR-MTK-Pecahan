@@ -482,10 +482,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 4306077788101824269}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -0.0011520386, y: -0.000030517578}
-  m_SizeDelta: {x: 0.16999817, y: -0.69999695}
+  m_SizeDelta: {x: 220.55, y: 248.0453}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1454225581960110351
 CanvasRenderer:
@@ -839,7 +839,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
   m_AnchoredPosition: {x: -103, y: -640}
-  m_SizeDelta: {x: 220.55, y: 248.0453}
+  m_SizeDelta: {x: 245.55, y: 273.0453}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7755828197590037262
 CanvasRenderer:
@@ -893,7 +893,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NumberLineSoalPanel
   titleText: {fileID: 4758090603106380217}
   title: Hasil
-  readOnly: 1
+  readOnly: 0
   wholeButton: {fileID: 292241368126945944}
   numeratorButton: {fileID: 3409537125573352284}
   denominatorButton: {fileID: 7439308565348642329}
@@ -905,9 +905,9 @@ MonoBehaviour:
   - {fileID: 9082164461451880363}
   - {fileID: 2354415495489398574}
   - {fileID: 7568693365368421021}
-  indicatorImage: {fileID: 0}
-  correctSprite: {fileID: 0}
-  wrongSprite: {fileID: 0}
+  indicatorImage: {fileID: 6333644091914653263}
+  correctSprite: {fileID: -1009413371, guid: 47378caaa6ca69f4e8f8a7c93891ded0, type: 3}
+  wrongSprite: {fileID: -1393917601, guid: 47378caaa6ca69f4e8f8a7c93891ded0, type: 3}
 --- !u!1 &6412379096265330101
 GameObject:
   m_ObjectHideFlags: 0
@@ -940,10 +940,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 4306077788101824269}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.0011520386, y: -0.000030517578}
-  m_SizeDelta: {x: 245.55, y: 273.0453}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &659617444169363110
 CanvasRenderer:
@@ -1213,8 +1213,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: -0.044079, y: -36.7325}
-  m_SizeDelta: {x: 220.63, y: 73.4651}
+  m_AnchoredPosition: {x: -0.044079, y: -48.773712}
+  m_SizeDelta: {x: 220.63, y: 72.5464}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &5705998452950340784
 CanvasRenderer:
