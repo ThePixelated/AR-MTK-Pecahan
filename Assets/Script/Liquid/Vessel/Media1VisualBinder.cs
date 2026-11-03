@@ -1,20 +1,31 @@
+using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
-// Menghubungkan Media1Session (data) ke LiquidVessel (tampilan): level isi, warna per tingkat encer, garis penyebut.
-// Bagian "Uji" untuk mencoba tanpa UI; digantikan controller Media 1 di tahap 1d.
+// Menghubungkan Media1Session (data) ke LiquidVessel (tampilan): level isi, warna per tingkat encer, garis penyebut,
+// label dunia statis, dan level botol yang sedang menuang.
+// Bagian "Uji" untuk mencoba tanpa UI; di halaman, controller Media 1 yang membuat dan meng-Bind session.
 public class Media1VisualBinder : LiquidBinderBase
 {
+    [Serializable]
+    public class VesselLabel
+    {
+        public LiquidVessel vessel;          // gelas yang dilabeli
+        public GameObject root;              // induk label: dinyalakan hanya kalau gelasnya ada; kosong = selalu tampil
+        public TMP_Text currentVolumeTxt;    // pembilang: bagian yang sedang terisi
+        public TMP_Text denominatorTxt;      // penyebut: partisi
+    }
+
     [SerializeField] LiquidStyle style;
     [SerializeField] LiquidVessel vesselA, vesselB, vesselW;
     [SerializeField] LiquidVessel[] finalCupVessels;      // disiapkan di scene (nonaktif); diaktifkan sesuai jumlah gelas akhir
     [SerializeField] float fillSpeed = 1f;                // level mengikuti data (rasio per detik)
+    [SerializeField] VesselLabel[] labels;                // label dunia statis (tidak ikut gelas, tidak menghadap kamera)
 
     [Header("Uji (sementara)")]
-    [SerializeField] bool createTestSession = true;
+    [SerializeField] bool createTestSession = false;
     [SerializeField, Range(2, 10)] int testDenominator = 6;
-    [SerializeField, Range(1, 10)] int testWater = 3;
-    [SerializeField, Range(1, 10)] int testSyrup = 5;
     [SerializeField, Range(1, 5)] int testPrediction = 2;
 
     Media1Session session;
@@ -23,17 +34,18 @@ public class Media1VisualBinder : LiquidBinderBase
     readonly Dictionary<LiquidVessel, float> shown = new Dictionary<LiquidVessel, float>();
     float pourWindowEnd = -1f;
 
+    LiquidVessel bottle;                 // botol dari gambar yang sedang menuang
+    float bottleFlowStart = -1f, bottleFlowLength = 1f;
+
     public Media1Session Session => session;
     public override IPourSession PourSession => session;
 
-    // 3) tambahkan override
-    //public override void BeginPourWindow(float seconds) => pourWindowEnd = Time.time + seconds;
-
-    // 4) tambahkan override
-    //public override bool TryGetContainer(LiquidVessel v, out LiquidContainer c)
-
     // Selama jendela ini, level bergerak merata sampai tepat selesai di akhir durasi tuang
-    public override void BeginPourWindow(float seconds) => pourWindowEnd = Time.time + seconds;
+    public override void BeginPourWindow(float seconds)
+    {
+        pourWindowEnd = Time.time + seconds;
+        if (bottle) { bottleFlowStart = Time.time; bottleFlowLength = Mathf.Max(0.05f, seconds); }
+    }
 
     public override bool TryGetContainer(LiquidVessel v, out LiquidContainer c)
     {
@@ -43,7 +55,33 @@ public class Media1VisualBinder : LiquidBinderBase
         return false;
     }
 
-    void Start() { if (createTestSession) Bind(new Media1Session()); }
+    // Botol dari gambar air atau sirup: penuh, lalu isinya berkurang sepanjang tuangan
+    public void SetBottle(LiquidVessel v, Color color)
+    {
+        bottle = v;
+        bottleFlowStart = -1f;
+        if (!v) return;
+        v.ScaleVisible = false;
+        v.Fill = 1f;
+        v.LiquidColor = color;
+    }
+
+    public void ClearBottle()
+    {
+        bottle = null;
+        bottleFlowStart = -1f;
+    }
+
+    // Warna larutan murni (air atau sirup), sama dengan warna di gelas A dan B
+    public Color PureColor(LiquidKind kind)
+    {
+        if (style == null || session == null) return Color.white;
+        int levels = session.Limits.DilutionLevels;
+        Mixture m = kind == LiquidKind.Water ? Mixture.Water(1) : Mixture.Syrup(1);
+        return style.ColorFor(LiquidColorLevel.Level(m, levels), levels);
+    }
+
+    void Start() { if (createTestSession && session == null) { Bind(new Media1Session()); session.SetPartition(testDenominator); } }
     void OnDestroy() => Unbind();
 
     public void Bind(Media1Session s)
@@ -81,7 +119,7 @@ public class Media1VisualBinder : LiquidBinderBase
         }
 
         int levels = session.Limits.DilutionLevels;
-        int p = session.IsConfigured ? session.Config.Value.denominator : 1;
+        int p = session.Denominator > 0 ? session.Denominator : 1;
         for (int i = 0; i < containers.Count; i++)
         {
             LiquidVessel v = vessels[i];
@@ -89,9 +127,28 @@ public class Media1VisualBinder : LiquidBinderBase
             LiquidContainer c = containers[i];
 
             bool isW = c == session.W;
-            v.ConfigureScale(isW ? (int)Mathf.Max(1, c.CapacitySections) : p, isW ? p : 1);   // gelas: p bagian tiap 1; wadah: T bagian tiap p
+            v.ConfigureScale(isW ? (int)Mathf.Max(1, c.CapacitySections) : p, isW ? p : 1);   // gelas: p bagian tiap 1; wadah: 2p bagian tiap p
             if (style != null && !c.IsEmpty)    // wadah kosong mempertahankan warna terakhir sampai levelnya habis
                 v.LiquidColor = style.ColorFor(LiquidColorLevel.Level(c.Content, levels), levels);
+        }
+
+        RefreshLabels(p);
+    }
+
+    // Label statis: pembilang = bagian terisi, penyebut = partisi
+    void RefreshLabels(int p)
+    {
+        if (labels == null) return;
+        foreach (VesselLabel label in labels)
+        {
+            if (label == null || label.vessel == null) continue;
+
+            bool exists = TryGetContainer(label.vessel, out LiquidContainer c);
+            if (label.root && label.root.activeSelf != exists) label.root.SetActive(exists);
+            if (!exists) continue;
+
+            if (label.currentVolumeTxt) label.currentVolumeTxt.text = c.VolumeSections.ToString();
+            if (label.denominatorTxt) label.denominatorTxt.text = session.Denominator > 0 ? p.ToString() : "-";
         }
     }
 
@@ -110,28 +167,26 @@ public class Media1VisualBinder : LiquidBinderBase
             shown[v] = cur;
             v.Fill = cur;
         }
+
+        if (bottle)
+            bottle.Fill = bottleFlowStart < 0f ? 1f : 1f - Mathf.Clamp01((Time.time - bottleFlowStart) / bottleFlowLength);
     }
 
     // ---- menu uji (klik kanan komponen saat Play) ----
     void EnsureSession() { if (session == null) Bind(new Media1Session()); }
 
-    void TestPour(LiquidContainer from, LiquidContainer to)
+    [ContextMenu("Uji: atur partisi")]
+    void TestPartition()
     {
         EnsureSession();
-        PourError e = session.TryPour(from, to);
-        if (e != PourError.None) Debug.Log($"[Media1Uji] tuang ditolak: {e}", this);
+        ConfigError e = session.SetPartition(testDenominator);
+        if (e != ConfigError.None) Debug.Log($"[Media1Uji] partisi ditolak: {e}", this);
     }
 
-    [ContextMenu("Uji: terapkan konfigurasi")]
-    void TestApply()
-    {
-        EnsureSession();
-        ConfigError e = session.ApplyConfig(testDenominator, testWater, testSyrup);
-        if (e != ConfigError.None) Debug.Log($"[Media1Uji] konfigurasi ditolak: {e}", this);
-    }
-
-    [ContextMenu("Uji: tuang A (air) ke W")] void TestPourA() { EnsureSession(); TestPour(session.A, session.W); }
-    [ContextMenu("Uji: tuang B (sirup) ke W")] void TestPourB() { EnsureSession(); TestPour(session.B, session.W); }
+    [ContextMenu("Uji: tambah air (gelas A)")] void TestAddWater() { EnsureSession(); Debug.Log($"[Media1Uji] {session.TryAdd(LiquidKind.Water)}", this); }
+    [ContextMenu("Uji: tambah sirup (gelas B)")] void TestAddSyrup() { EnsureSession(); Debug.Log($"[Media1Uji] {session.TryAdd(LiquidKind.Syrup)}", this); }
+    [ContextMenu("Uji: gabungkan A ke wadah")] void TestMergeA() { EnsureSession(); Debug.Log($"[Media1Uji] {session.TryPourAll(session.A)}", this); }
+    [ContextMenu("Uji: gabungkan B ke wadah")] void TestMergeB() { EnsureSession(); Debug.Log($"[Media1Uji] {session.TryPourAll(session.B)}", this); }
 
     [ContextMenu("Uji: tuang W ke gelas akhir")]
     void TestPourToCup()
@@ -139,7 +194,7 @@ public class Media1VisualBinder : LiquidBinderBase
         EnsureSession();
         int idx = session.FirstOpenFinalCupIndex;
         if (idx >= session.FinalCups.Count) { Debug.Log("[Media1Uji] tidak ada gelas akhir yang terbuka", this); return; }
-        TestPour(session.W, session.FinalCups[idx]);
+        Debug.Log($"[Media1Uji] {session.TryPour(session.W, session.FinalCups[idx])}", this);
     }
 
     [ContextMenu("Uji: prediksi gelas akhir")]
@@ -150,5 +205,5 @@ public class Media1VisualBinder : LiquidBinderBase
         Debug.Log($"[Media1Uji] prediksi {testPrediction}: {(r.error != PredictError.None ? r.error.ToString() : (r.correct ? "BENAR, gelas akhir muncul" : "SALAH"))}", this);
     }
 
-    [ContextMenu("Uji: reset")] void TestReset() { EnsureSession(); session.ResetAll(); }
+    [ContextMenu("Uji: reset isi")] void TestReset() { EnsureSession(); session.ResetContent(); }
 }

@@ -5,7 +5,19 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
-// Interaksi tuang (dipakai Media 1 dan Media 3): grab gelas, ray ke penerima, tuang 1 bagian dengan animasi,
+// Satu tuangan yang dijalankan kode (bukan lewat drag): Gabungkan di Media 1 dan 3
+public struct PourJob
+{
+    public VesselActor source;
+    public VesselActor target;
+    public Func<PourError> commit;      // perubahan data saat aliran mulai; null = session.TryPour 1 bagian
+    public float durationScale;         // 1 = pourDuration; lebih besar = lebih lama (mis. banyaknya bagian); 0 dianggap 1
+    public float seconds;               // > 0: durasi tuang dalam detik (menimpa durationScale)
+    public bool disposeSource;          // true: sumber dimatikan setelah selesai (botol dari gambar), tidak kembali ke pivot
+    public Action onDone;               // dijalankan setelah tuangan selesai
+}
+
+// Interaksi tuang (dipakai Media 1 dan Media 3): grab gelas, ray ke penerima, tuang dengan animasi,
 // lalu kembali ke pivot asal. Letakkan di bawah World Root halaman yang bersangkutan.
 public class PourController : MonoBehaviour
 {
@@ -13,6 +25,7 @@ public class PourController : MonoBehaviour
     [SerializeField] VesselActor[] movableActors;      // boleh digrab dan dituang (Media 1: A, B, W; Media 3: gelas sirup, gelas air)
     [SerializeField] VesselActor[] fixedActors;        // hanya jadi penerima (Media 1: gelas akhir; Media 3: wadah)
     [SerializeField] WaterStream stream;
+    [SerializeField] WaterStream secondStream;         // untuk dua tuangan bersamaan (Gabungkan); kosong = berbagi aliran pertama
     [SerializeField] Camera worldCamera;               // kosong = Camera.main
     [SerializeField] LayerMask pourMask;               // SATU layer khusus (mis. "Pour")
     [SerializeField] string notMovableMessage;         // kosong = pakai Media1Messages.NotMovable
@@ -36,6 +49,7 @@ public class PourController : MonoBehaviour
 
     readonly RaycastHit[] hits = new RaycastHit[16];
     Mode mode;
+    int activeRoutines;
     VesselActor dragged, hoverActor;
     PourError hoverError;
     Plane dragPlane;
@@ -65,6 +79,7 @@ public class PourController : MonoBehaviour
 
         foreach (VesselActor a in AllActors()) if (a) a.SetupCollider(Layer);
         mode = Mode.Idle;
+        activeRoutines = 0;
     }
 
     void Update()
@@ -83,6 +98,47 @@ public class PourController : MonoBehaviour
             UpdateDrag(pos, session);
             if (!ptr.press.isPressed) Release(session);
         }
+    }
+
+    // ---------------- job (Gabungkan) ----------------
+    // Menjalankan beberapa tuangan lewat kode; bersamaan (aliran pertama dan kedua) atau bergiliran. false = sedang sibuk atau tidak ada job.
+    public bool StartJobs(IList<PourJob> jobs, bool sequential)
+    {
+        IPourSession session = binder ? binder.PourSession : null;
+        if (mode != Mode.Idle || session == null || jobs == null || jobs.Count == 0) return false;
+
+        mode = Mode.Busy;
+        if (sequential)
+        {
+            Run(SequenceRoutine(new List<PourJob>(jobs), session));
+            return true;
+        }
+
+        if (jobs.Count > 1 && secondStream == null)
+            Debug.LogWarning($"[{name}] PourController: 'Second Stream' kosong, dua tuangan bersamaan berbagi satu aliran.", this);
+
+        for (int i = 0; i < jobs.Count; i++)
+            Run(PourRoutine(jobs[i], session, i > 0 && secondStream != null ? secondStream : stream));
+        return true;
+    }
+
+    IEnumerator SequenceRoutine(List<PourJob> jobs, IPourSession session)
+    {
+        foreach (PourJob job in jobs) yield return PourRoutine(job, session, stream);
+    }
+
+    // Semua gerak berjalan lewat Run; mode kembali Idle setelah routine terakhir selesai
+    void Run(IEnumerator routine)
+    {
+        activeRoutines++;
+        StartCoroutine(Tracked(routine));
+    }
+
+    IEnumerator Tracked(IEnumerator routine)
+    {
+        yield return routine;
+        activeRoutines = Mathf.Max(0, activeRoutines - 1);
+        if (activeRoutines == 0) mode = Mode.Idle;
     }
 
     // ---------------- grab dan drag ----------------
@@ -163,7 +219,7 @@ public class PourController : MonoBehaviour
 
         if (tgt != null && err == PourError.None)
         {
-            StartCoroutine(PourRoutine(src, tgt, session));
+            Run(PourRoutine(new PourJob { source = src, target = tgt }, session, stream));
             return;
         }
 
@@ -172,14 +228,17 @@ public class PourController : MonoBehaviour
             string msg = Media1Messages.For(err);
             if (!string.IsNullOrEmpty(msg)) Feedback.Show(msg, FeedbackKind.Warning);
         }
-        StartCoroutine(ReturnRoutine(src, 0f));
+        Run(ReturnHome(src, 0f));
     }
 
     // ---------------- tuang ----------------
     static Vector3 Flat(Vector3 v) { v.y = 0f; return v; }
 
-    IEnumerator PourRoutine(VesselActor src, VesselActor tgt, IPourSession session)
+    IEnumerator PourRoutine(PourJob job, IPourSession session, WaterStream waterStream)
     {
+        VesselActor src = job.source, tgt = job.target;
+        float duration = job.seconds > 0f ? job.seconds : pourDuration * (job.durationScale > 0f ? job.durationScale : 1f);
+
         Transform root = src.transform;
         LiquidVessel sv = src.Vessel, tv = tgt.Vessel;
         binder.TryGetContainer(sv, out LiquidContainer sc);
@@ -236,8 +295,8 @@ public class PourController : MonoBehaviour
                 if (reached || holdAtMax > 0.15f)
                 {
                     flowing = true;
-                    binder.BeginPourWindow(pourDuration);                  // level dan warna bergerak sepanjang durasi tuang
-                    PourError e = session.TryPour(sc, tc);                  // data bergerak tepat 1 bagian
+                    binder.BeginPourWindow(duration);                      // level dan warna bergerak sepanjang durasi tuang
+                    PourError e = job.commit != null ? job.commit() : session.TryPour(sc, tc);    // data berubah sekali, saat aliran mulai
                     if (e != PourError.None)
                     {
                         string msg = Media1Messages.For(e);
@@ -250,8 +309,8 @@ public class PourController : MonoBehaviour
             if (flowing)
             {
                 flowT += dt;
-                stream.SetPath(lipNow, tv.LiquidSurfaceCenterWorld(), width, sv.LiquidColor);
-                if (flowT >= pourDuration) break;
+                waterStream.SetPath(lipNow, tv.LiquidSurfaceCenterWorld(), width, sv.LiquidColor);
+                if (flowT >= duration) break;
                 if (sd > -lipMargin) angle = Mathf.Min(angle + tiltRate * dt, maxTilt);
             }
             else
@@ -263,7 +322,7 @@ public class PourController : MonoBehaviour
             root.SetPositionAndRotation(PosFor(rot), rot);
             yield return null;
         }
-        stream.Hide();
+        waterStream.Hide();
 
         // 3) tegak lagi (di sekitar bibir), lalu kembali ke pivot asal
         float a0 = angle;
@@ -274,11 +333,13 @@ public class PourController : MonoBehaviour
             yield return null;
         }
 
-        yield return ReturnRoutine(src, returnTime);
+        if (job.disposeSource) src.gameObject.SetActive(false);        // botol: hilang setelah menuang
+        else yield return ReturnHome(src, returnTime);
+        job.onDone?.Invoke();
     }
 
     // Kembali ke pose asal dalam ruang lokal, supaya tetap benar walau Image Target bergerak
-    IEnumerator ReturnRoutine(VesselActor actor, float duration)
+    IEnumerator ReturnHome(VesselActor actor, float duration)
     {
         Transform root = actor.transform;
         Vector3 p0 = root.localPosition, p1 = actor.HomeLocalPosition;
@@ -294,7 +355,6 @@ public class PourController : MonoBehaviour
         }
         root.localPosition = p1;
         root.localRotation = r1;
-        mode = Mode.Idle;
     }
 
     // UI HUD (overlay) selalu menghalangi; UI world-space hanya kalau interaktif

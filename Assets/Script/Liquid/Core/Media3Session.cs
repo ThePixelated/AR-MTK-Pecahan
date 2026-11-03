@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
 
-// State dan aturan Media 3 (data murni, tanpa Unity). Satu instance dimiliki controller halaman Media 3.
+// State dan aturan Media 3 (data murni). Gelas air dan sirup tidak pernah habis; tiap swipe menambah 1 cangkir ke wadah.
 public sealed class Media3Session : IPourSession
 {
-    public const long PourSections = 1;    // setiap swipe memindahkan tepat 1 bagian
-
     public Media3Limits Limits { get; }
 
+    // Penanda untuk PourController dan binder (isinya tidak dipakai): dua gelas pemberi dan satu wadah penerima
     public LiquidContainer Syrup { get; } = new LiquidContainer("Gelas sirup", ContainerRole.Give);
     public LiquidContainer Water { get; } = new LiquidContainer("Gelas air", ContainerRole.Give);
     public LiquidContainer W { get; } = new LiquidContainer("Wadah", ContainerRole.Receive);
@@ -15,104 +14,66 @@ public sealed class Media3Session : IPourSession
     readonly List<Media3Entry> entries = new List<Media3Entry>();
     public IReadOnlyList<Media3Entry> Entries => entries;
 
-    public Media3Config? Config { get; private set; }
-    public bool IsConfigured => Config.HasValue;
-    public int PourCount { get; private set; }
-    public int LastDuplicateIndex { get; private set; } = -1;     // indeks entri yang kembar pada penolakan DuplicateEntry terakhir
+    public int WaterCount { get; private set; }
+    public int SyrupCount { get; private set; }
+    public int TotalCount => WaterCount + SyrupCount;
+    public bool IsEmpty => TotalCount == 0;
+    public float SyrupRatio => TotalCount == 0 ? 0f : (float)SyrupCount / TotalCount;     // 0 = air bening
+
     public bool TrialsFull => entries.Count >= Limits.MaxTrials;
+    public int LastDuplicateIndex { get; private set; } = -1;     // indeks entri yang kembar pada penolakan DuplicateEntry terakhir
 
     public event Action Changed;           // apa pun berubah
     public event Action EntriesChanged;    // daftar entri berubah (tambah, hapus, reset)
 
     public Media3Session(Media3Limits limits = null) { Limits = limits ?? new Media3Limits(); }
 
-    // true = mengubah konfigurasi akan membuang hasil tuang, jadi UI menampilkan popup dulu
-    public bool NeedsConfirmBeforeReconfigure => PourCount > 0;
-
-    long CupCapacity => Limits.MaxPerCup;
-    long WadahCapacity => 2L * Limits.MaxPerCup;    // ukuran wadah tetap; yang naik hanya level cairan
-
-    // ---- konfigurasi (stepper Atur Campuran) ----
-    public Media3ConfigError Validate(int syrupSections, int waterSections)
-    {
-        if (syrupSections < Limits.MinPerCup || syrupSections > Limits.MaxPerCup) return Media3ConfigError.SyrupOutOfRange;
-        if (waterSections < Limits.MinPerCup || waterSections > Limits.MaxPerCup) return Media3ConfigError.WaterOutOfRange;
-        return Media3ConfigError.None;
-    }
-
-    // Terapkan konfigurasi: kedua gelas diisi ulang, wadah dikosongkan. Entri tidak tersentuh.
-    // UI menampilkan popup dulu kalau NeedsConfirmBeforeReconfigure.
-    public Media3ConfigError ApplyConfig(int syrupSections, int waterSections)
-    {
-        Media3ConfigError err = Validate(syrupSections, waterSections);
-        if (err != Media3ConfigError.None) return err;
-
-        Config = new Media3Config(syrupSections, waterSections);
-        RefillTrial();
-        Changed?.Invoke();
-        return Media3ConfigError.None;
-    }
-
-    // Gelas diisi sesuai konfigurasi aktif, wadah kosong, hitungan tuang nol
-    void RefillTrial()
-    {
-        if (Config.HasValue)
-        {
-            Media3Config c = Config.Value;
-            Syrup.Configure(CupCapacity, Mixture.Syrup(c.syrupSections));
-            Water.Configure(CupCapacity, Mixture.Water(c.waterSections));
-            W.Configure(WadahCapacity, Mixture.Empty);
-        }
-        else
-        {
-            Syrup.Configure(0, Mixture.Empty);
-            Water.Configure(0, Mixture.Empty);
-            W.Configure(0, Mixture.Empty);
-        }
-        PourCount = 0;
-    }
-
-    // ---- tuang ----
+    // ---- tuang: satu swipe = 1 cangkir ----
     public PourError CheckPour(LiquidContainer source, LiquidContainer target)
     {
-        if (!IsConfigured) return PourError.NotConfigured;
         if (source == target) return PourError.SameContainer;
         if (!source.CanGive) return PourError.SourceCannotGive;
         if (!target.CanReceive) return PourError.TargetCannotReceive;
-        if (source.VolumeSections < PourSections) return PourError.SourceEmpty;
-        if (target.SpaceSections < PourSections) return PourError.TargetFull;
+        if (source == Water && WaterCount >= Limits.MaxPerCup) return PourError.TargetFull;
+        if (source == Syrup && SyrupCount >= Limits.MaxPerCup) return PourError.TargetFull;
         return PourError.None;
     }
 
-    // Pindahkan tepat 1 bagian dari source ke target
     public PourError TryPour(LiquidContainer source, LiquidContainer target)
     {
         PourError err = CheckPour(source, target);
         if (err != PourError.None) return err;
 
-        Mixture moved = source.Take(PourSections);
-        target.Put(moved);
-        PourCount++;
+        if (source == Water) WaterCount++;
+        else SyrupCount++;
+        Changed?.Invoke();
+        return PourError.None;
+    }
 
-        source.NotifyChanged();    // setelah keduanya berubah, supaya tampilan tidak melihat keadaan setengah jadi
-        target.NotifyChanged();
+    // ---- Gabungkan: air +1 dan sirup +1 sekaligus; keduanya harus muat, kalau tidak tidak ada yang berubah ----
+    public PourError CheckMerge() =>
+        WaterCount >= Limits.MaxPerCup || SyrupCount >= Limits.MaxPerCup ? PourError.TargetFull : PourError.None;
+
+    public PourError TryMerge()
+    {
+        PourError err = CheckMerge();
+        if (err != PourError.None) return err;
+
+        WaterCount++;
+        SyrupCount++;
         Changed?.Invoke();
         return PourError.None;
     }
 
     // ---- entri (tombol Input) ----
-    // Mencatat isi wadah sebagai entri baru, lalu gelas diisi ulang dan wadah dikosongkan.
-    // Kalau ditolak, tidak ada yang berubah (wadah dan gelas tetap).
+    // Mencatat isi wadah sebagai entri baru, lalu hitungan dikembalikan ke 0 (wadah berwarna air lagi).
+    // Kalau ditolak, tidak ada yang berubah.
     public Media3InputResult TryInput()
     {
-        if (!IsConfigured) return Media3InputResult.NotConfigured;
         if (TrialsFull) return Media3InputResult.TrialsFull;
-        if (W.IsEmpty) return Media3InputResult.NothingPoured;
-        if (Limits.RequireAllPoured && (!Syrup.IsEmpty || !Water.IsEmpty)) return Media3InputResult.NotAllPoured;
+        if (IsEmpty) return Media3InputResult.NothingPoured;
 
-        Mixture m = W.Content;
-        var entry = new Media3Entry(WholeSections(m.syrup), WholeSections(m.water));
-
+        var entry = new Media3Entry(SyrupCount, WaterCount);
         for (int i = 0; i < entries.Count; i++)
         {
             if (!entries[i].SamePair(entry)) continue;
@@ -121,13 +82,14 @@ public sealed class Media3Session : IPourSession
         }
 
         entries.Add(entry);
-        RefillTrial();
+        WaterCount = 0;
+        SyrupCount = 0;
         EntriesChanged?.Invoke();
         Changed?.Invoke();
         return Media3InputResult.Added;
     }
 
-    // Hapus satu entri (nomor entri di bawahnya bergeser). Gelas dan wadah tidak disentuh.
+    // Hapus satu entri (nomor entri di bawahnya bergeser). Isi wadah tidak disentuh.
     public bool RemoveEntry(int index)
     {
         if (index < 0 || index >= entries.Count) return false;
@@ -137,16 +99,23 @@ public sealed class Media3Session : IPourSession
         return true;
     }
 
-    // Hapus semua entri, lalu gelas diisi ulang sesuai konfigurasi aktif dan wadah dikosongkan
+    // Kosongkan isi wadah saja (entri tetap)
+    public void ResetMixture()
+    {
+        if (IsEmpty) return;
+        WaterCount = 0;
+        SyrupCount = 0;
+        Changed?.Invoke();
+    }
+
+    // Hapus semua entri dan kosongkan wadah
     public void ResetAll()
     {
         bool hadEntries = entries.Count > 0;
         entries.Clear();
-        RefillTrial();
+        WaterCount = 0;
+        SyrupCount = 0;
         if (hadEntries) EntriesChanged?.Invoke();
         Changed?.Invoke();
     }
-
-    // Volume wadah selalu bulat karena tiap tuang memindahkan tepat 1 bagian dari gelas yang murni
-    static int WholeSections(Fraction f) => (int)(f.numerator / f.denominator);
 }

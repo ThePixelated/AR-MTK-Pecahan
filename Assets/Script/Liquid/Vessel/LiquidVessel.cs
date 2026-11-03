@@ -68,6 +68,7 @@ public class LiquidVessel : MonoBehaviour
 
     public float Fill { get => fill; set => fill = Mathf.Clamp01(value); }
     public Color LiquidColor { get => liquidColor; set => liquidColor = value; }
+    public bool ScaleVisible { get; set; } = true;     // false: garis penyebut disembunyikan walau style menyalakannya (Media 3)
 
     // Titik acuan (dunia) untuk tahap tuang
     public Vector3 RimCenterWorld => glass.TransformPoint(new Vector3(profile.axisXZ.x, profile.rimY, profile.axisXZ.y));
@@ -272,8 +273,8 @@ public class LiquidVessel : MonoBehaviour
     void UpdateScale()
     {
         if (scaleMpb == null) return;
-        ApplyScale(scaleInnerR, style != null && style.showInnerLines);
-        ApplyScale(scaleOuterR, style != null && style.showOuterLines);
+        ApplyScale(scaleInnerR, ScaleVisible && style != null && style.showInnerLines);
+        ApplyScale(scaleOuterR, ScaleVisible && style != null && style.showOuterLines);
     }
 
     void ApplyScale(MeshRenderer mr, bool on)

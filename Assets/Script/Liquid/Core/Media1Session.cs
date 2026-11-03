@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 
 // State dan aturan Media 1 (data murni). Satu instance dimiliki controller halaman Media 1.
+public enum LiquidKind { Water, Syrup }
+
 public sealed class Media1Session : IPourSession
 {
     public const long PourSections = 1;    // setiap swipe memindahkan tepat 1 bagian
@@ -29,14 +31,107 @@ public sealed class Media1Session : IPourSession
     public bool NeedsConfirmBeforeReconfigure => PourCount > 0 || finalCups.Count > 0;
 
     // Jumlah gelas akhir yang dibutuhkan = ceil(total bagian / penyebut); 0 kalau belum dikonfigurasi
+    // Jumlah gelas akhir yang dibutuhkan = ceil(total cairan / penyebut); 0 kalau belum ada partisi
     public int RequiredCups
     {
         get
         {
             if (!Config.HasValue) return 0;
             int p = Config.Value.denominator;
-            return (Config.Value.TotalSections + p - 1) / p;
+            return (int)((TotalLiquid + p - 1) / p);
         }
+    }
+
+    // ---------- alur baru: partisi realtime, larutan ditarik per bagian ----------
+    public int Denominator => Config.HasValue ? Config.Value.denominator : 0;     // partisi aktif
+
+    // Total cairan di seluruh sistem (gelas A, B, wadah, dan gelas akhir), dalam bagian
+    public long TotalLiquid
+    {
+        get
+        {
+            long sum = A.VolumeSections + B.VolumeSections + W.VolumeSections;
+            foreach (LiquidContainer c in finalCups) sum += c.VolumeSections;
+            return sum;
+        }
+    }
+
+    // Ada yang perlu dihapus kalau partisi diubah atau Ulangi ditekan
+    public bool HasContent => TotalLiquid > 0 || finalCups.Count > 0;
+
+    // Menambah larutan butuh konfirmasi kalau wadah sudah berisi atau gelas akhir sudah muncul
+    public bool NeedsConfirmBeforeAdd => !W.IsEmpty || finalCups.Count > 0;
+
+    // Atur partisi: semua gelas kosong, gelas akhir dihapus. UI menampilkan popup dulu kalau HasContent.
+    public ConfigError SetPartition(int denominator)
+    {
+        if (denominator < Limits.MinDenominator || denominator > Limits.MaxDenominator) return ConfigError.DenominatorOutOfRange;
+
+        bool hadFinalCups = finalCups.Count > 0;
+        finalCups.Clear();
+
+        Config = new Media1Config(denominator, 0, 0);
+        A.Configure(denominator, Mixture.Empty);
+        B.Configure(denominator, Mixture.Empty);
+        W.Configure(2L * denominator, Mixture.Empty);      // wadah menampung kedua gelas yang penuh
+        PourCount = 0;
+        PredictionAttempts = 0;
+
+        if (hadFinalCups) FinalCupsChanged?.Invoke();
+        Changed?.Invoke();
+        return ConfigError.None;
+    }
+
+    // Kosongkan semuanya dengan partisi yang sama
+    public void ResetContent()
+    {
+        if (IsConfigured) SetPartition(Denominator);
+    }
+
+    // Satu tarikan air (ke gelas A) atau sirup (ke gelas B) = 1 bagian
+    public PourError CheckAdd(LiquidKind kind)
+    {
+        if (!IsConfigured) return PourError.NotConfigured;
+        LiquidContainer cup = kind == LiquidKind.Water ? A : B;
+        return cup.SpaceSections < PourSections ? PourError.TargetFull : PourError.None;
+    }
+
+    public PourError TryAdd(LiquidKind kind)
+    {
+        PourError err = CheckAdd(kind);
+        if (err != PourError.None) return err;
+
+        LiquidContainer cup = kind == LiquidKind.Water ? A : B;
+        cup.Put(kind == LiquidKind.Water ? Mixture.Water(1) : Mixture.Syrup(1));
+        cup.NotifyChanged();
+        Changed?.Invoke();
+        return PourError.None;
+    }
+
+    // Gabungkan: seluruh isi gelas A atau B ke wadah
+    public PourError CheckPourAll(LiquidContainer source)
+    {
+        if (!IsConfigured) return PourError.NotConfigured;
+        if (source != A && source != B) return PourError.SourceCannotGive;
+        if (source.VolumeSections < PourSections) return PourError.SourceEmpty;
+        if (W.SpaceSections < source.VolumeSections) return PourError.TargetFull;
+        return PourError.None;
+    }
+
+    public PourError TryPourAll(LiquidContainer source)
+    {
+        PourError err = CheckPourAll(source);
+        if (err != PourError.None) return err;
+
+        long n = source.VolumeSections;
+        Mixture moved = source.Take(n);
+        W.Put(moved);
+        PourCount += (int)n;
+
+        source.NotifyChanged();
+        W.NotifyChanged();
+        Changed?.Invoke();
+        return PourError.None;
     }
 
     // Index gelas akhir pertama yang belum penuh (= Count kalau semuanya penuh atau belum ada)

@@ -34,6 +34,13 @@ namespace ScriptAudit
     public enum SceneScope { None = 0, OpenScenes = 1, BuildScenes = 2 }
 
     [Serializable]
+    public class AuditCandidate
+    {
+        public string label;
+        public string scriptPath;
+    }
+
+    [Serializable]
     public class AuditIssue
     {
         public Sev severity;
@@ -48,6 +55,11 @@ namespace ScriptAudit
         public string fix;
         public string fixArg1;
         public string fixArg2;
+
+        // Pengelompokan (expandable) & kandidat script untuk re-link
+        public string group;
+        public string info;   // keterangan tambahan (tidak ikut identitas Key)
+        public List<AuditCandidate> candidates = new List<AuditCandidate>();
 
         public bool CanFix { get { return !string.IsNullOrEmpty(fix); } }
 
@@ -68,6 +80,9 @@ namespace ScriptAudit
         public bool playerAvailability = true;
         public bool buildSettings = true;
         public bool resourcesCheck = true;
+        public bool assetScan = true;
+        public bool metaCheck = true;
+        public string originalProject = "";   // salinan project lama (opsional) untuk bandingkan GUID
         public SceneScope sceneScope = SceneScope.BuildScenes;
         public bool scanPrefabs = true;
         public bool scanUnityEventsAll = true;
@@ -690,6 +705,585 @@ namespace ScriptAudit
         }
     }
 
+    // ------------------------------------------------------------ .META SCANNER
+    static class MetaScanner
+    {
+        static readonly Regex GuidRx = new Regex("^[0-9a-f]{32}$", RegexOptions.Compiled);
+
+        public static string ReadGuid(string metaPath)
+        {
+            try
+            {
+                using (var r = new StreamReader(metaPath))
+                {
+                    for (int i = 0; i < 12; i++)
+                    {
+                        string l = r.ReadLine();
+                        if (l == null) break;
+                        if (!l.StartsWith("guid:", StringComparison.Ordinal)) continue;
+                        string g = l.Substring(5).Trim().ToLowerInvariant();
+                        return GuidRx.IsMatch(g) ? g : null;
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        // aturan Unity: file/folder berawalan '.', berakhiran '~', '.tmp', atau bernama 'cvs' diabaikan
+        static bool IgnoredByUnity(string path)
+        {
+            foreach (var seg in path.Split('/'))
+            {
+                if (seg.Length == 0) continue;
+                if (seg[0] == '.' || seg.EndsWith("~", StringComparison.Ordinal) ||
+                    seg.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) ||
+                    seg.Equals("cvs", StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        public static void Run(AuditOptions o, List<AuditIssue> issues)
+        {
+            if (!Directory.Exists("Assets")) return;
+            var entries = Directory.GetFileSystemEntries("Assets", "*", SearchOption.AllDirectories)
+                                   .Select(e => AuditUtil.Norm(e)).ToList();
+            var set = new HashSet<string>(entries);
+            var byGuid = new Dictionary<string, List<string>>();
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (i % 500 == 0)
+                    EditorUtility.DisplayProgressBar("Script Auditor", "Cek .meta ...", (float)i / Math.Max(1, entries.Count));
+
+                string e = entries[i];
+                if (IgnoredByUnity(e)) continue;
+
+                if (e.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
+                {
+                    string asset = e.Substring(0, e.Length - 5);
+                    if (AuditUtil.IsExcluded(asset, o)) continue;
+
+                    if (!set.Contains(asset))
+                    {
+                        issues.Add(new AuditIssue
+                        {
+                            severity = Sev.Warning,
+                            category = "Orphan .meta",
+                            message = "File .meta tanpa file/folder pasangannya: " + e + " (aset dihapus/dipindah tanpa .meta-nya).",
+                            assetPath = AuditUtil.Norm(Path.GetDirectoryName(e))
+                        });
+                        continue;
+                    }
+
+                    string g = ReadGuid(e);
+                    if (g == null)
+                    {
+                        issues.Add(new AuditIssue
+                        {
+                            severity = Sev.Error,
+                            category = "Meta Rusak",
+                            message = "File .meta tidak punya GUID yang valid: " + e,
+                            assetPath = asset
+                        });
+                        continue;
+                    }
+
+                    List<string> list;
+                    if (!byGuid.TryGetValue(g, out list)) { list = new List<string>(); byGuid[g] = list; }
+                    list.Add(e);
+
+                    string dbGuid = AssetDatabase.AssetPathToGUID(asset);
+                    if (!string.IsNullOrEmpty(dbGuid) && dbGuid != g)
+                        issues.Add(new AuditIssue
+                        {
+                            severity = Sev.Error,
+                            category = "Meta Mismatch",
+                            message = "GUID di file .meta (" + g.Substring(0, 8) + "...) berbeda dengan GUID yang dipakai Unity (" +
+                                      dbGuid.Substring(0, 8) + "...). .meta diubah dari luar Unity dan belum di-refresh.",
+                            assetPath = asset
+                        });
+                }
+                else
+                {
+                    if (AuditUtil.IsExcluded(e, o)) continue;
+                    if (!set.Contains(e + ".meta"))
+                        issues.Add(new AuditIssue
+                        {
+                            severity = Sev.Warning,
+                            category = "Missing .meta",
+                            message = "File/folder tanpa .meta: " + e + ". Unity akan membuat GUID baru, sehingga GUID berbeda di tiap mesin/clone.",
+                            assetPath = e
+                        });
+                }
+            }
+
+            foreach (var kv in byGuid)
+            {
+                if (kv.Value.Count < 2) continue;
+                string g8 = kv.Key.Substring(0, 8);
+                foreach (var m in kv.Value)
+                    issues.Add(new AuditIssue
+                    {
+                        severity = Sev.Error,
+                        category = "Duplicate GUID",
+                        group = "GUID kembar " + g8 + "...  (" + kv.Value.Count + " file)",
+                        message = "GUID sama dengan: " + string.Join(", ", kv.Value.Where(x => x != m).Select(x => Path.GetFileName(x)).Take(3).ToArray()) +
+                                  ". Unity hanya memakai salah satunya; referensi bisa menunjuk ke file yang salah.",
+                        assetPath = m.Substring(0, m.Length - 5),
+                        detail = "guid: " + kv.Key
+                    });
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ SALINAN ASLI (opsional)
+    // Membaca .meta dari salinan project lama (mis. hasil ekstrak Project.rar) -> peta GUID lama -> path lama.
+    static class OriginalIndex
+    {
+        public static Dictionary<string, string> Build(string folder)
+        {
+            var map = new Dictionary<string, string>();
+            if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder)) return map;
+
+            string root = Path.GetFullPath(folder.TrimEnd('/', '\\'));
+            string assets = Directory.Exists(Path.Combine(root, "Assets")) ? Path.Combine(root, "Assets") : root;
+            assets = Path.GetFullPath(assets);
+            string baseDir = Directory.GetParent(assets).FullName;
+
+            foreach (var m in Directory.GetFiles(assets, "*.meta", SearchOption.AllDirectories))
+            {
+                string g = MetaScanner.ReadGuid(m);
+                if (g == null || map.ContainsKey(g)) continue;
+                string full = m.Substring(0, m.Length - 5);
+                map[g] = AuditUtil.Norm(full.Substring(baseDir.Length)).TrimStart('/');
+            }
+            return map;
+        }
+
+        // path lama -> path sekarang (path sama, atau nama file unik)
+        public static string ResolveCurrent(string oldRel)
+        {
+            if ((File.Exists(oldRel) || Directory.Exists(oldRel)) && !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(oldRel))) return oldRel;
+            string fileName = Path.GetFileName(oldRel);
+            string name = Path.GetFileNameWithoutExtension(oldRel);
+            var hits = AssetDatabase.FindAssets(name, new[] { "Assets" })
+                .Select(g => AuditUtil.Norm(AssetDatabase.GUIDToAssetPath(g)))
+                .Where(p => string.Equals(Path.GetFileName(p), fileName, StringComparison.OrdinalIgnoreCase))
+                .Distinct().ToList();
+            return hits.Count == 1 ? hits[0] : null;
+        }
+    }
+
+    // ------------------------------------------------------------ YAML ASSET / GUID SCANNER
+    // Membaca YAML (.asset .unity .prefab .mat .controller .anim): m_Script putus + referensi GUID putus.
+    static class AssetScanner
+    {
+        static readonly string[] YamlExts = { ".asset", ".unity", ".prefab", ".mat", ".controller", ".anim", ".overrideController" };
+        static readonly Regex ScriptRx = new Regex(@"m_Script:\s*\{fileID:\s*(-?\d+),\s*guid:\s*([0-9a-fA-F]{32}),\s*type:\s*(\d+)\}", RegexOptions.Compiled);
+        static readonly Regex RefRx = new Regex(@"\{fileID:\s*(-?\d+),\s*guid:\s*([0-9a-fA-F]{32}),\s*type:\s*(\d+)\}", RegexOptions.Compiled);
+        static readonly Regex KeyRx = new Regex(@"^\s*(?:-\s+)?([A-Za-z_][\w\.]*)\s*:", RegexOptions.Compiled);
+        static readonly Regex FieldRx = new Regex(@"^  ([A-Za-z_]\w*):", RegexOptions.Compiled);
+        static readonly HashSet<string> StdKeys = new HashSet<string>
+        {
+            "m_ObjectHideFlags", "m_CorrespondingSourceObject", "m_PrefabInstance", "m_PrefabAsset",
+            "m_GameObject", "m_Enabled", "m_EditorHideFlags", "m_Script", "m_Name", "m_EditorClassIdentifier"
+        };
+        const long MaxBytes = 20L * 1024 * 1024;
+        const int MaxRefIssuesPerAsset = 25;
+
+        sealed class RefInfo { public string key; public string guid; public int line; }
+        sealed class AssetInfo
+        {
+            public string path;
+            public string scriptGuid;   // m_Script pertama (untuk .asset)
+            public Dictionary<string, HashSet<string>> fieldsByGuid = new Dictionary<string, HashSet<string>>();
+            public List<RefInfo> refs = new List<RefInfo>();
+        }
+        sealed class ScriptCand { public string path; public string className; public bool isSO; public HashSet<string> fields; }
+
+        internal static bool IsYaml(string p)
+        {
+            foreach (var e in YamlExts) if (p.EndsWith(e, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        static bool IsZeroGuid(string g) { return g.StartsWith("0000000000000000", StringComparison.Ordinal); }
+
+        static AssetInfo Parse(string path, string[] lines)
+        {
+            var info = new AssetInfo { path = path };
+            bool mono = false;
+            string cur = null;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string l = lines[i];
+                if (l.StartsWith("--- !u!", StringComparison.Ordinal))
+                {
+                    mono = l.StartsWith("--- !u!114", StringComparison.Ordinal);
+                    cur = null;
+                    continue;
+                }
+
+                var sm = ScriptRx.Match(l);
+                if (sm.Success)
+                {
+                    if (mono)
+                    {
+                        cur = sm.Groups[2].Value.ToLowerInvariant();
+                        if (info.scriptGuid == null) info.scriptGuid = cur;
+                        if (!info.fieldsByGuid.ContainsKey(cur)) info.fieldsByGuid[cur] = new HashSet<string>();
+                    }
+                    continue;
+                }
+
+                if (mono && cur != null)
+                {
+                    var fm = FieldRx.Match(l);
+                    if (fm.Success && !StdKeys.Contains(fm.Groups[1].Value)) info.fieldsByGuid[cur].Add(fm.Groups[1].Value);
+                }
+
+                foreach (Match m in RefRx.Matches(l))
+                {
+                    string g = m.Groups[2].Value.ToLowerInvariant();
+                    if (IsZeroGuid(g)) continue;
+                    var km = KeyRx.Match(l);
+                    info.refs.Add(new RefInfo { key = km.Success ? km.Groups[1].Value : "(elemen array)", guid = g, line = i + 1 });
+                }
+            }
+            return info;
+        }
+
+        static List<string> GetContainers()
+        {
+            var containers = new List<string>();
+            foreach (var s in EditorBuildSettings.scenes)
+                if (s.enabled && File.Exists(s.path)) containers.Add(AuditUtil.Norm(s.path));
+            foreach (var p in AssetDatabase.GetAllAssetPaths())
+            {
+                if (!p.StartsWith("Assets/", StringComparison.Ordinal)) continue;
+                if (p.IndexOf("/Resources/", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                if (p.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase) ||
+                    p.EndsWith(".asset", StringComparison.OrdinalIgnoreCase) ||
+                    p.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
+                    containers.Add(p);
+            }
+            return containers;
+        }
+
+        // null = tidak dipakai build
+        static string UsersOf(string assetPath, List<string> containers, Dictionary<string, HashSet<string>> cache)
+        {
+            if (assetPath.IndexOf("/Resources/", StringComparison.OrdinalIgnoreCase) >= 0) return "folder Resources";
+            var hit = new List<string>();
+            foreach (var c in containers)
+            {
+                if (c == assetPath) continue;
+                HashSet<string> deps;
+                if (!cache.TryGetValue(c, out deps))
+                {
+                    deps = new HashSet<string>(AssetDatabase.GetDependencies(c, true).Select(x => AuditUtil.Norm(x)));
+                    cache[c] = deps;
+                }
+                if (deps.Contains(assetPath)) hit.Add(Path.GetFileName(c));
+            }
+            if (hit.Count == 0) return null;
+            var d = hit.Distinct().ToList();
+            return string.Join(", ", d.Take(3).ToArray()) + (d.Count > 3 ? ", +" + (d.Count - 3) : "");
+        }
+
+        static HashSet<string> SerializedFieldNames(Type t)
+        {
+            var set = new HashSet<string>();
+            for (var c = t; c != null && c != typeof(ScriptableObject) && c != typeof(MonoBehaviour) && c != typeof(object); c = c.BaseType)
+            {
+                foreach (var f in c.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                {
+                    if (f.IsNotSerialized) continue;
+                    if (f.IsPublic ||
+                        f.GetCustomAttributes(typeof(SerializeField), true).Length > 0 ||
+                        f.GetCustomAttributes(typeof(SerializeReference), true).Length > 0)
+                        set.Add(f.Name);
+                }
+            }
+            return set;
+        }
+
+        static List<ScriptCand> BuildCands()
+        {
+            var list = new List<ScriptCand>();
+            foreach (var g in AssetDatabase.FindAssets("t:MonoScript", new[] { "Assets" }))
+            {
+                string sp = AuditUtil.Norm(AssetDatabase.GUIDToAssetPath(g));
+                var ms = AssetDatabase.LoadAssetAtPath<MonoScript>(sp);
+                var t = ms != null ? ms.GetClass() : null;
+                if (t == null || t.IsAbstract || t.IsGenericTypeDefinition) continue;
+                bool so = typeof(ScriptableObject).IsAssignableFrom(t);
+                bool mb = typeof(MonoBehaviour).IsAssignableFrom(t);
+                if (!so && !mb) continue;
+                list.Add(new ScriptCand { path = sp, className = t.Name, isSO = so, fields = SerializedFieldNames(t) });
+            }
+            return list;
+        }
+
+        // Kandidat dinilai dari: nama class == nama asset, dan irisan nama field YAML vs field serialized class.
+        static List<AuditCandidate> SuggestFor(HashSet<string> yamlFields, string assetName, bool wantSO, List<ScriptCand> cands)
+        {
+            var scored = new List<KeyValuePair<double, AuditCandidate>>();
+            foreach (var c in cands)
+            {
+                if (c.isSO != wantSO) continue;
+                int inter = yamlFields.Count(f => c.fields.Contains(f));
+                int union = yamlFields.Count + c.fields.Count - inter;
+                double j = union == 0 ? 0.0 : (double)inter / union;
+                bool nameMatch = !string.IsNullOrEmpty(assetName) && string.Equals(c.className, assetName, StringComparison.OrdinalIgnoreCase);
+                double score = Math.Min(1.0, j + (nameMatch ? 0.5 : 0.0));
+                if (score < 0.15 && !nameMatch) continue;
+                scored.Add(new KeyValuePair<double, AuditCandidate>(score, new AuditCandidate
+                {
+                    scriptPath = c.path,
+                    label = Path.GetFileName(c.path) + "  -  cocok " + Mathf.RoundToInt((float)score * 100f) + "% (" +
+                            inter + "/" + yamlFields.Count + " field" + (nameMatch ? ", nama sama" : "") + ")"
+                }));
+            }
+            return scored.OrderByDescending(x => x.Key).Take(5).Select(x => x.Value).ToList();
+        }
+
+        static void AddOriginalCandidate(List<AuditCandidate> list, string guid, Dictionary<string, string> orig)
+        {
+            if (orig == null) return;
+            string oldRel;
+            if (!orig.TryGetValue(guid, out oldRel)) return;
+            string cur = OriginalIndex.ResolveCurrent(oldRel);
+            if (cur == null) return;
+            list.Insert(0, new AuditCandidate
+            {
+                scriptPath = cur,
+                label = "Dari salinan asli: " + oldRel + "  ->  sekarang: " + cur + "  (path/nama cocok)"
+            });
+        }
+
+        public static void Run(AuditOptions o, List<AuditIssue> issues)
+        {
+            var paths = AssetDatabase.GetAllAssetPaths()
+                .Where(p => p.StartsWith("Assets/", StringComparison.Ordinal) && IsYaml(p) && !AuditUtil.IsExcluded(p, o))
+                .ToList();
+
+            // ---- pass 1: baca & parse semua YAML
+            var infos = new List<AssetInfo>();
+            int skipped = 0;
+            for (int i = 0; i < paths.Count; i++)
+            {
+                if (i % 20 == 0)
+                    EditorUtility.DisplayProgressBar("Script Auditor", "Scan YAML: " + Path.GetFileName(paths[i]), (float)i / Math.Max(1, paths.Count));
+                try
+                {
+                    var fi = new FileInfo(paths[i]);
+                    if (!fi.Exists) continue;
+                    if (fi.Length > MaxBytes) { skipped++; continue; }
+                    string[] lines = File.ReadAllLines(paths[i]);
+                    if (lines.Length == 0 || !lines[0].StartsWith("%YAML", StringComparison.Ordinal)) { skipped++; continue; }
+                    infos.Add(Parse(paths[i], lines));
+                }
+                catch { skipped++; }
+            }
+            if (skipped > 0)
+                issues.Add(new AuditIssue
+                {
+                    severity = Sev.Info,
+                    category = "Asset Scan",
+                    message = skipped + " file YAML dilewati (binary / lebih dari 20 MB / tidak terbaca). Set Asset Serialization ke Force Text agar bisa dicek."
+                });
+
+            var containers = GetContainers();
+            var containerSet = new HashSet<string>(containers);
+            var depCache = new Dictionary<string, HashSet<string>>();
+            var brokenPaths = new HashSet<string>();
+            Dictionary<string, string> orig = string.IsNullOrWhiteSpace(o.originalProject) ? null : OriginalIndex.Build(o.originalProject);
+            List<ScriptCand> cands = null;
+            var assetInfos = infos.Where(a => a.path.EndsWith(".asset", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            // ---- pass 2: m_Script pada .asset
+            foreach (var a in assetInfos)
+            {
+                if (a.scriptGuid == null) continue;
+                string name = Path.GetFileNameWithoutExtension(a.path);
+                string sp = IsZeroGuid(a.scriptGuid) ? "" : AuditUtil.Norm(AssetDatabase.GUIDToAssetPath(a.scriptGuid));
+
+                if (string.IsNullOrEmpty(sp))
+                {
+                    brokenPaths.Add(a.path);
+                    string users = UsersOf(a.path, containers, depCache);
+                    var issue = new AuditIssue
+                    {
+                        severity = users != null ? Sev.Error : Sev.Warning,
+                        category = "Missing Script (Asset)",
+                        message = "Asset '" + name + "' Missing Script: script dengan GUID " + a.scriptGuid.Substring(0, 8) +
+                                  "... tidak ditemukan di project (script dihapus/dibuat ulang, atau .meta-nya hilang/berubah saat dipindah). " +
+                                  (users != null ? "DIPAKAI build lewat [" + users + "] -> di APK jadi 'script unknown'."
+                                                 : "Tidak terlihat dipakai scene build manapun."),
+                        detail = "m_Script guid: " + a.scriptGuid,
+                        assetPath = a.path,
+                        fixArg1 = a.scriptGuid
+                    };
+                    if (cands == null) cands = BuildCands();
+                    issue.candidates = SuggestFor(a.fieldsByGuid[a.scriptGuid], name, true, cands);
+                    AddOriginalCandidate(issue.candidates, a.scriptGuid, orig);
+                    issues.Add(issue);
+                }
+                else if (sp.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                {
+                    var ms = AssetDatabase.LoadAssetAtPath<MonoScript>(sp);
+                    var cls = ms != null ? ms.GetClass() : null;
+                    if (ms != null && cls == null)
+                    {
+                        brokenPaths.Add(a.path);
+                        issues.Add(new AuditIssue
+                        {
+                            severity = Sev.Error,
+                            category = "Missing Class (Asset)",
+                            message = "Asset '" + name + "' menunjuk ke script '" + Path.GetFileName(sp) +
+                                      "' tapi file itu tidak punya class valid (nama class != nama file, error compile, atau class dibungkus #if).",
+                            assetPath = a.path,
+                            detail = "script: " + sp
+                        });
+                    }
+                    else if (cls != null && !typeof(ScriptableObject).IsAssignableFrom(cls))
+                    {
+                        issues.Add(new AuditIssue
+                        {
+                            severity = Sev.Warning,
+                            category = "Missing Class (Asset)",
+                            message = "Asset '" + name + "' menunjuk ke script '" + Path.GetFileName(sp) + "' yang class-nya (" + cls.Name + ") bukan ScriptableObject.",
+                            assetPath = a.path,
+                            detail = "script: " + sp
+                        });
+                    }
+                }
+            }
+
+            // ---- pass 3: referensi putus per field di dalam .asset (expandable per asset)
+            foreach (var a in assetInfos)
+            {
+                string name = Path.GetFileNameWithoutExtension(a.path);
+                string group = "Referensi bermasalah di " + name + "  (" + a.path + ")";
+                int count = 0, extra = 0;
+                foreach (var r in a.refs)
+                {
+                    string rp = AuditUtil.Norm(AssetDatabase.GUIDToAssetPath(r.guid));
+                    string msg = null; Sev sev = Sev.Error;
+
+                    if (string.IsNullOrEmpty(rp))
+                        msg = "Field '" + r.key + "' menunjuk GUID " + r.guid.Substring(0, 8) +
+                              "... yang tidak ada di project (target dihapus, atau .meta berubah saat dipindah).";
+                    else if (brokenPaths.Contains(rp) && rp != a.path)
+                    {
+                        msg = "Field '" + r.key + "' menunjuk ke asset '" + Path.GetFileName(rp) + "' yang Missing Script.";
+                        sev = Sev.Warning;
+                    }
+                    if (msg == null) continue;
+
+                    if (++count > MaxRefIssuesPerAsset) { extra++; continue; }
+                    issues.Add(new AuditIssue
+                    {
+                        severity = sev,
+                        category = "Broken Reference (Asset)",
+                        group = group,
+                        message = msg,
+                        assetPath = a.path,
+                        line = r.line
+                    });
+                }
+                if (extra > 0)
+                    issues.Add(new AuditIssue
+                    {
+                        severity = Sev.Info,
+                        category = "Broken Reference (Asset)",
+                        group = group,
+                        message = "+" + extra + " referensi bermasalah lainnya di asset ini tidak ditampilkan.",
+                        assetPath = a.path
+                    });
+            }
+
+            // ---- pass 4: tingkat GUID untuk SEMUA tipe YAML (scene, prefab, material, ...) + remap
+            var missingScripts = new Dictionary<string, List<AssetInfo>>();
+            var danglingFiles = new Dictionary<string, List<string>>();
+            var danglingKeys = new Dictionary<string, HashSet<string>>();
+
+            foreach (var a in infos)
+            {
+                foreach (var g in a.fieldsByGuid.Keys)
+                {
+                    if (IsZeroGuid(g) || !string.IsNullOrEmpty(AssetDatabase.GUIDToAssetPath(g))) continue;
+                    List<AssetInfo> l;
+                    if (!missingScripts.TryGetValue(g, out l)) { l = new List<AssetInfo>(); missingScripts[g] = l; }
+                    l.Add(a);
+                }
+                foreach (var r in a.refs)
+                {
+                    if (!string.IsNullOrEmpty(AssetDatabase.GUIDToAssetPath(r.guid))) continue;
+                    List<string> l;
+                    if (!danglingFiles.TryGetValue(r.guid, out l)) { l = new List<string>(); danglingFiles[r.guid] = l; danglingKeys[r.guid] = new HashSet<string>(); }
+                    if (!l.Contains(a.path)) l.Add(a.path);
+                    danglingKeys[r.guid].Add(r.key);
+                }
+            }
+
+            foreach (var kv in missingScripts)
+            {
+                var files = kv.Value.Select(x => x.path).Distinct().ToList();
+                if (files.All(f => f.EndsWith(".asset", StringComparison.OrdinalIgnoreCase))) continue; // sudah dilaporkan per-asset
+                bool wantSO = kv.Value[0].path.EndsWith(".asset", StringComparison.OrdinalIgnoreCase);
+                var fields = new HashSet<string>();
+                foreach (var x in kv.Value) HashSetUnion(fields, x.fieldsByGuid[kv.Key]);
+
+                if (cands == null) cands = BuildCands();
+                var issue = MakeGuidIssue(kv.Key, files, null, "Missing Script (GUID)",
+                    "Script dengan GUID " + kv.Key.Substring(0, 8) + "... tidak ditemukan di project. Component yang memakainya jadi Missing Script. " +
+                    "Pilih kandidat di bawah untuk me-remap GUID ini di semua file sekaligus.",
+                    containerSet, containers, depCache);
+                issue.candidates = SuggestFor(fields, null, wantSO, cands);
+                AddOriginalCandidate(issue.candidates, kv.Key, orig);
+                issues.Add(issue);
+            }
+
+            foreach (var kv in danglingFiles)
+            {
+                if (missingScripts.ContainsKey(kv.Key)) continue;
+                bool onlyAssets = kv.Value.All(f => f.EndsWith(".asset", StringComparison.OrdinalIgnoreCase));
+                bool hasOrig = orig != null && orig.ContainsKey(kv.Key);
+                if (onlyAssets && !hasOrig) continue; // sudah tampil per-field di grup asset
+
+                var issue = MakeGuidIssue(kv.Key, kv.Value, danglingKeys[kv.Key], "Broken Reference (GUID)",
+                    "Aset dengan GUID " + kv.Key.Substring(0, 8) + "... tidak ada di project, tetapi masih dirujuk file lain " +
+                    "(aset target dihapus, atau .meta-nya berubah saat dipindah).",
+                    containerSet, containers, depCache);
+                AddOriginalCandidate(issue.candidates, kv.Key, orig);
+                issues.Add(issue);
+            }
+        }
+
+        static void HashSetUnion(HashSet<string> into, HashSet<string> from) { foreach (var x in from) into.Add(x); }
+
+        static AuditIssue MakeGuidIssue(string guid, List<string> files, HashSet<string> keys, string category, string message,
+                                        HashSet<string> containerSet, List<string> containers, Dictionary<string, HashSet<string>> depCache)
+        {
+            bool inBuild = files.Take(15).Any(f => containerSet.Contains(f) || UsersOf(f, containers, depCache) != null);
+            string info = files.Count + " file: " + string.Join(", ", files.Take(6).Select(f => Path.GetFileName(f)).ToArray()) + (files.Count > 6 ? ", ..." : "");
+            if (keys != null && keys.Count > 0) info += "  |  field: " + string.Join(", ", keys.Take(6).ToArray());
+            return new AuditIssue
+            {
+                severity = inBuild ? Sev.Error : Sev.Warning,
+                category = category,
+                message = message + (inBuild ? " Dipakai oleh scene/prefab yang ikut build." : ""),
+                detail = "guid: " + guid,
+                info = info,
+                assetPath = files[0],
+                fixArg1 = guid
+            };
+        }
+    }
+
     // ------------------------------------------------------------ OBJECT SCANNER
     public sealed class ObjectScanner
     {
@@ -889,6 +1483,8 @@ namespace ScriptAudit
                 if (o.playerAvailability) PlayerCheck.CheckUsedScripts(o, player, issues);
                 if (o.buildSettings) BuildCheck.Run(src, issues);
                 if (o.resourcesCheck && src != null) ResourcesCheck.Run(src, issues);
+                if (o.assetScan) AssetScanner.Run(o, issues);
+                if (o.metaCheck) MetaScanner.Run(o, issues);
 
                 if (scanObjects)
                 {
@@ -1195,6 +1791,8 @@ namespace ScriptAudit
                 case "removeBuildScene": return "Hapus entri scene yang file-nya tidak ada dari Build Settings: " + it.fixArg1;
                 case "replaceLiteral": return "Ganti \"" + it.fixArg1 + "\" menjadi \"" + it.fixArg2 + "\" pada baris ini.";
                 case "removeMissingScripts": return "Hapus semua component Missing Script dari GameObject '" + it.objectPath + "'.";
+                case "remapGuid": return "Ganti GUID lama dengan GUID aset tujuan di semua file YAML yang memakainya (ada konfirmasi + backup).";
+                case "relinkScript": return "Re-link m_Script asset ini (GUID " + (it.fixArg1 ?? "").Substring(0, Math.Min(8, (it.fixArg1 ?? "").Length)) + "...) ke script: " + it.fixArg2;
             }
             return "";
         }
@@ -1210,7 +1808,7 @@ namespace ScriptAudit
         {
             result = "";
             if (string.IsNullOrEmpty(it.fix)) { result = "Tidak ada fix otomatis untuk item ini."; return false; }
-            if (!Confirm(Describe(it) + (string.IsNullOrEmpty(it.assetPath) ? "" : "\n\n" + it.assetPath)))
+            if (it.fix != "remapGuid" && !Confirm(Describe(it) + (string.IsNullOrEmpty(it.assetPath) ? "" : "\n\n" + it.assetPath)))
             {
                 result = "Dibatalkan.";
                 return false;
@@ -1223,6 +1821,8 @@ namespace ScriptAudit
                     case "removeBuildScene": return RemoveBuildScene(it.fixArg1, out result);
                     case "replaceLiteral": return ReplaceLiteral(it, out result);
                     case "removeMissingScripts": return RemoveMissing(it, out result);
+                    case "remapGuid": return RemapGuid(it, out result);
+                    case "relinkScript": return RelinkScript(it, out result);
                 }
             }
             catch (Exception e)
@@ -1283,6 +1883,66 @@ namespace ScriptAudit
             File.WriteAllText(file, text, new UTF8Encoding(false));
             AssetDatabase.ImportAsset(file);
             result = "Diganti pada " + file + ":" + it.line;
+            return true;
+        }
+
+        static List<string> FilesWithGuid(string guid)
+        {
+            var res = new List<string>();
+            foreach (var p in AssetDatabase.GetAllAssetPaths())
+            {
+                if (!p.StartsWith("Assets/", StringComparison.Ordinal) || !AssetScanner.IsYaml(p)) continue;
+                try { if (File.ReadAllText(p).Contains(guid)) res.Add(p); } catch { }
+            }
+            return res;
+        }
+
+        // Ganti GUID lama -> GUID aset tujuan di SEMUA file YAML yang memakainya (satu GUID = satu operasi).
+        static bool RemapGuid(AuditIssue it, out string result)
+        {
+            string oldG = it.fixArg1, newG = it.fixArg2;
+            if (string.IsNullOrEmpty(oldG) || string.IsNullOrEmpty(newG)) { result = "GUID lama/baru tidak valid."; return false; }
+            string target = AssetDatabase.GUIDToAssetPath(newG);
+            if (string.IsNullOrEmpty(target)) { result = "Aset tujuan tidak ditemukan."; return false; }
+
+            var files = FilesWithGuid(oldG);
+            if (files.Count == 0) { result = "Tidak ada file yang memakai GUID lama (mungkin sudah diperbaiki)."; return false; }
+
+            if (!EditorUtility.DisplayDialog("Script Auditor - Fix",
+                    "Ganti GUID " + oldG.Substring(0, Math.Min(8, oldG.Length)) + "... menjadi " + newG.Substring(0, 8) + "...\nTujuan: " + target +
+                    "\n\nAkan mengubah " + files.Count + " file:\n" + string.Join("\n", files.Take(8).ToArray()) + (files.Count > 8 ? "\n..." : "") +
+                    "\n\nBackup otomatis dibuat dulu (lihat 'Backups / Bin').\nSimpan/tutup scene yang sedang diedit dulu. Disarankan commit ke Git.",
+                    "Fix", "Batal")) { result = "Dibatalkan."; return false; }
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) { result = "Dibatalkan."; return false; }
+
+            BackupStore.Create("Remap GUID " + oldG.Substring(0, Math.Min(8, oldG.Length)) + " -> " + newG.Substring(0, 8) + " (" + target + ", " + files.Count + " file)", files, false);
+            foreach (var f in files)
+            {
+                string text = File.ReadAllText(f);
+                text = text.Replace("guid: " + oldG, "guid: " + newG);
+                File.WriteAllText(f, text, new UTF8Encoding(false));
+            }
+            AssetDatabase.Refresh();
+            result = files.Count + " file di-remap ke " + target;
+            return true;
+        }
+
+        static bool RelinkScript(AuditIssue it, out string result)
+        {
+            string file = it.assetPath, oldGuid = it.fixArg1, scriptPath = it.fixArg2;
+            if (string.IsNullOrEmpty(file) || !File.Exists(file)) { result = "Asset tidak ditemukan: " + file; return false; }
+            string newGuid = AssetDatabase.AssetPathToGUID(scriptPath);
+            if (string.IsNullOrEmpty(newGuid)) { result = "Script tujuan tidak valid: " + scriptPath; return false; }
+
+            string text = File.ReadAllText(file);
+            var rx = new Regex(@"(m_Script:\s*\{fileID:\s*)-?\d+(,\s*guid:\s*)" + Regex.Escape(oldGuid) + @"(,\s*type:\s*3\})");
+            if (!rx.IsMatch(text)) { result = "m_Script lama tidak ditemukan lagi di file. Jalankan audit ulang."; return false; }
+
+            BackupStore.Create("Re-link script " + Path.GetFileName(file) + " -> " + Path.GetFileName(scriptPath), new[] { file }, false);
+            text = rx.Replace(text, "${1}11500000${2}" + newGuid + "${3}");
+            File.WriteAllText(file, text, new UTF8Encoding(false));
+            AssetDatabase.ImportAsset(file);
+            result = "Asset di-link ke " + scriptPath;
             return true;
         }
 
@@ -1358,6 +2018,8 @@ namespace ScriptAudit
         readonly Section secProblems = new Section { open = true };
         readonly Section secExcluded = new Section { open = false };
         bool backupsOpen;
+        readonly Dictionary<string, bool> groupOpen = new Dictionary<string, bool>();
+        readonly Dictionary<string, bool> candOpen = new Dictionary<string, bool>();
         GUIStyle wrap, small;
 
         [MenuItem("Tools/Script Auditor/Open Window")]
@@ -1416,7 +2078,24 @@ namespace ScriptAudit
             Repaint();
         }
 
+        // Modul lain (mis. Objects Audit) mendaftarkan diri di sini lewat [InitializeOnLoadMethod].
+        public static Action<EditorWindow> ObjectsAuditDraw;
+        int tab;
+
         void OnGUI()
+        {
+            tab = GUILayout.Toolbar(tab, new[] { "Script Audit", "Objects Audit" }, GUILayout.Height(24));
+            GUILayout.Space(2);
+            if (tab == 1)
+            {
+                if (ObjectsAuditDraw != null) ObjectsAuditDraw(this);
+                else EditorGUILayout.HelpBox("Modul Objects Audit belum terpasang. Letakkan ObjectsAudit.cs di folder Editor.", MessageType.Info);
+                return;
+            }
+            DrawScriptAudit();
+        }
+
+        void DrawScriptAudit()
         {
             if (o == null) o = AuditOptions.Load();
             if (wrap == null)
@@ -1482,7 +2161,19 @@ namespace ScriptAudit
 
                 var shown = list.Where(i => Pass(i, st)).Take(300).ToList();
                 st.scroll = EditorGUILayout.BeginScrollView(st.scroll, GUILayout.ExpandHeight(true), GUILayout.MinHeight(110));
-                foreach (var it in shown) DrawIssue(it, isExcluded);
+                foreach (var it in shown.Where(i => string.IsNullOrEmpty(i.group))) DrawIssue(it, isExcluded);
+                foreach (var g in shown.Where(i => !string.IsNullOrEmpty(i.group)).GroupBy(i => i.group).ToList())
+                {
+                    string gk = (isExcluded ? "x|" : "p|") + g.Key;
+                    bool gopen;
+                    groupOpen.TryGetValue(gk, out gopen);
+                    gopen = EditorGUILayout.Foldout(gopen, g.Key + "  (" + g.Count() + ")", true);
+                    groupOpen[gk] = gopen;
+                    if (!gopen) continue;
+                    EditorGUI.indentLevel++;
+                    foreach (var it in g) DrawIssue(it, isExcluded);
+                    EditorGUI.indentLevel--;
+                }
                 if (shown.Count == 0)
                     EditorGUILayout.LabelField(list.Count == 0 ? (isExcluded ? "Belum ada yang di-exclude." : (scanned ? "Tidak ada masalah." : "Belum ada hasil. Jalankan audit.")) : "Tidak ada hasil untuk filter ini.", small);
                 if (shown.Count >= 300) EditorGUILayout.LabelField("Menampilkan 300 pertama. Pakai filter/search atau Export.", small);
@@ -1530,6 +2221,36 @@ namespace ScriptAudit
                 if (!string.IsNullOrEmpty(it.objectPath)) loc += "   >   " + it.objectPath;
                 if (loc.Length > 0) EditorGUILayout.LabelField(loc, small);
                 if (!string.IsNullOrEmpty(it.detail)) EditorGUILayout.LabelField("> " + it.detail, small);
+                if (!string.IsNullOrEmpty(it.info)) EditorGUILayout.LabelField(it.info, small);
+
+                if (!isExcluded && (it.category == "Missing Script (Asset)" || it.category == "Missing Script (GUID)" || it.category == "Broken Reference (GUID)"))
+                {
+                    if (it.candidates != null && it.candidates.Count > 0)
+                    {
+                        string ck = it.Key();
+                        bool co;
+                        candOpen.TryGetValue(ck, out co);
+                        co = EditorGUILayout.Foldout(co, "Kandidat script (" + it.candidates.Count + ")", true);
+                        candOpen[ck] = co;
+                        if (co)
+                        {
+                            foreach (var cd in it.candidates)
+                            {
+                                using (new EditorGUILayout.HorizontalScope())
+                                {
+                                    GUILayout.Space(14);
+                                    EditorGUILayout.LabelField(cd.label, small);
+                                    if (GUILayout.Button(new GUIContent("Pakai", "Re-link asset ini ke script tersebut"), GUILayout.Width(50)))
+                                    {
+                                        var parent = it; var cand = cd;
+                                        EditorApplication.delayCall += () => ApplyCandidate(parent, cand);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else EditorGUILayout.LabelField("Tidak ada kandidat otomatis. Isi 'Salinan project asli' di Opsi, atau perbaiki manual.", small);
+                }
             }
         }
 
@@ -1549,6 +2270,29 @@ namespace ScriptAudit
             if (ok)
             {
                 string k = it.Key();
+                issues.RemoveAll(i => i.Key() == k);
+                Recompute();
+                backups = BackupStore.List();
+            }
+            Repaint();
+        }
+
+        void ApplyCandidate(AuditIssue parent, AuditCandidate c)
+        {
+            var fx = new AuditIssue
+            {
+                fix = "remapGuid",
+                assetPath = parent.assetPath,
+                objectPath = parent.objectPath,
+                fixArg1 = parent.fixArg1,
+                fixArg2 = AssetDatabase.AssetPathToGUID(c.scriptPath)
+            };
+            string res;
+            bool ok = FixEngine.Apply(fx, out res);
+            status = (ok ? "Fix OK: " : "Fix tidak dijalankan: ") + res + (ok ? "  (jalankan audit ulang untuk memastikan)" : "");
+            if (ok)
+            {
+                string k = parent.Key();
                 issues.RemoveAll(i => i.Key() == k);
                 Recompute();
                 backups = BackupStore.List();
@@ -1656,6 +2400,18 @@ namespace ScriptAudit
                 o.playerAvailability = EditorGUILayout.Toggle("Script dipakai build ikut player?", o.playerAvailability);
                 o.buildSettings = EditorGUILayout.Toggle("Cek Build Settings & LoadScene", o.buildSettings);
                 o.resourcesCheck = EditorGUILayout.Toggle("Cek Resources.Load (case)", o.resourcesCheck);
+                o.assetScan = EditorGUILayout.Toggle("Scan YAML (scene/prefab/asset): script & GUID putus", o.assetScan);
+                o.metaCheck = EditorGUILayout.Toggle("Cek file .meta (orphan, hilang, GUID kembar)", o.metaCheck);
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    o.originalProject = EditorGUILayout.TextField("Salinan project asli", o.originalProject);
+                    if (GUILayout.Button("...", GUILayout.Width(30)))
+                    {
+                        string op = EditorUtility.OpenFolderPanel("Pilih root project lama (atau folder Assets-nya)", "", "");
+                        if (!string.IsNullOrEmpty(op)) o.originalProject = op;
+                    }
+                }
+                EditorGUILayout.LabelField("Opsional: folder hasil ekstrak project lama (punya .meta asli). Dipakai untuk menebak GUID lama -> aset sekarang.", small);
                 o.sceneScope = (SceneScope)EditorGUILayout.EnumPopup("Scan scene (Full)", o.sceneScope);
                 o.scanPrefabs = EditorGUILayout.Toggle("Scan semua prefab (Full)", o.scanPrefabs);
                 o.scanUnityEventsAll = EditorGUILayout.Toggle("Cek UnityEvent semua component", o.scanUnityEventsAll);

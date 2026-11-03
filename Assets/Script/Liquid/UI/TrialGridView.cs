@@ -20,6 +20,7 @@ public class TrialGridView : MonoBehaviour
     [SerializeField] string waterSpriteName = "air";                    // nama sprite di TMP Sprite Asset
     [SerializeField] string syrupSpriteName = "sirup";
     [SerializeField] float fillSpeed = 1.2f;                            // level naik saat wadah baru muncul (rasio per detik)
+    [SerializeField] bool alwaysFull = true;                            // wadah selalu penuh (seperti wadah kerja); hanya warna yang berbeda
     [SerializeField] Vector3 labelEuler = new Vector3(60f, 0f, 0f);   // arah label tetap (derajat, relatif terhadap grid); tidak mengikuti kamera
 
     class Item
@@ -28,7 +29,7 @@ public class TrialGridView : MonoBehaviour
         public LiquidVessel vessel;
         public TMP_Text label;
         public float fill, target;
-        public bool scaleConfigured;
+        //public bool scaleConfigured; not used!
     }
 
     readonly List<Item> items = new List<Item>();
@@ -91,13 +92,11 @@ public class TrialGridView : MonoBehaviour
             if (!used) continue;
 
             Media3Entry e = session.Entries[i];
-            if (!it.scaleConfigured)
-            {
-                it.vessel.ConfigureScale(2 * max, 1);      // sama dengan wadah kerja: kapasitas 2 x MaxPerCup, garis tiap 1 bagian
-                it.scaleConfigured = true;
-            }
 
-            it.target = Mathf.Clamp01(e.TotalSections / (float)(2 * max));
+            it.vessel.ScaleVisible = false;                              // tanpa garis partisi
+            it.target = alwaysFull ? 1f : Mathf.Clamp01(e.TotalSections / (float)(2 * max));
+
+            //it.target = Mathf.Clamp01(e.TotalSections / (float)(2 * max));
             it.fill = wasActive ? it.target : 0f;          // wadah baru muncul naik dari kosong; yang sudah ada langsung mengikuti data
             it.vessel.Fill = it.fill;
             it.vessel.LiquidColor = style == null ? Color.white : style.ColorForRatio(e.SyrupRatio);

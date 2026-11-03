@@ -255,7 +255,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Aktivitas 3_6
+      name: sirup
       rect:
         serializedVersion: 2
         x: 694
@@ -277,7 +277,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Aktivitas 3_7
+      name: air
       rect:
         serializedVersion: 2
         x: 917
@@ -696,10 +696,10 @@ TextureImporter:
       Aktivitas 3_33: 1025106181
       Aktivitas 3_4: 1327664199
       Aktivitas 3_5: 2008068161
-      Aktivitas 3_6: -1634076465
-      Aktivitas 3_7: -456238011
       Aktivitas 3_8: 1290659059
       Aktivitas 3_9: -778233105
+      air: -456238011
+      sirup: -1634076465
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
