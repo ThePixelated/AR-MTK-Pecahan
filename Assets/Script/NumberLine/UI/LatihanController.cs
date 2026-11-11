@@ -237,7 +237,7 @@ public class LatihanController : MonoBehaviour
         if (soalText) soalText.text = q.FormattedText();
         bool hasImage = q.image != null;
         if (imageContainer) imageContainer.SetActive(hasImage);
-        if (soalImage && hasImage) soalImage.sprite = q.image;
+        if (soalImage && hasImage) { soalImage.sprite = q.image; soalImage.SetNativeSize(); }
 
         UpdateNavbar();
         UpdateCheckButton();

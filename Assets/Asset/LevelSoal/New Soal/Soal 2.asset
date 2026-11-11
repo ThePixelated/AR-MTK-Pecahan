@@ -1,0 +1,170 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fb9725eaa88ef54f8e1e072cdb63b33, type: 3}
+  m_Name: Soal 2
+  m_EditorClassIdentifier: Assembly-CSharp::NumberLineLevelData
+  levelTitle: Level 2
+  stayUntilCorrect: 1
+  questions:
+  - kind: 1
+    text: 'Siti memiliki 3 potong pita yang sama Panjang. Setiap potong pita panjangnya
+      1/6 meter. Berapakah Panjang pita yang dimiliki Siti? '
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 6
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 3
+      denominator: 6
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    pions: []
+    checkMode: 0
+    lockConfig: 0
+  - kind: 1
+    text: Representasikan gambar berikut ke garis bilangan
+    image: {fileID: -1892512054, guid: 2c36d7ca4e0db234392c0ce872b580a5, type: 3}
+    presetLength: 4
+    presetPartisi: 4
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 3
+      numerator: 1
+      denominator: 4
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    pions: []
+    checkMode: 0
+    lockConfig: 0
+  - kind: 1
+    text: Tentukanlah posisi 3 1/5 pada garis bilangan
+    image: {fileID: 0}
+    presetLength: 4
+    presetPartisi: 5
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 3
+      numerator: 1
+      denominator: 5
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    pions: []
+    checkMode: 0
+    lockConfig: 0
+  - kind: 1
+    text: Seekor kelinci bergerak 8/10 meter dari titik awal, kemudian bergerak lagi
+      kea rah yang sama sejauh 6/10  meter. Tentukan posisi kelinci saat ini!
+    image: {fileID: 0}
+    presetLength: 2
+    presetPartisi: 10
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 1
+      numerator: 4
+      denominator: 10
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    pions: []
+    checkMode: 0
+    lockConfig: 0
+  - kind: 1
+    text: 'Tersedia 4 kartu pecahan, Pilihlah dua buah kaertu di atas kemudian jumlahkan.
+      Pilihlah hasil penjumlahan yang lebih dari satu dan paling dekat dengan 11/4. '
+    image: {fileID: 552149007, guid: 54f97dfcbc2779a4e84b22985e700489, type: 3}
+    presetLength: 2
+    presetPartisi: 8
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 1
+      numerator: 2
+      denominator: 8
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    pions: []
+    checkMode: 0
+    lockConfig: 0

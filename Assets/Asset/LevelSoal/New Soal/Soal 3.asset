@@ -1,0 +1,142 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fb9725eaa88ef54f8e1e072cdb63b33, type: 3}
+  m_Name: Soal 3
+  m_EditorClassIdentifier: Assembly-CSharp::NumberLineLevelData
+  levelTitle: Level 3
+  stayUntilCorrect: 1
+  questions:
+  - kind: 1
+    text: 'Manakah yang dekat dengan 1/2. 3/8 atau 7/8? '
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 8
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 3
+      denominator: 8
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    pions: []
+    checkMode: 0
+    lockConfig: 0
+  - kind: 1
+    text: Seekor semut bergerak dari titik awal sebanyak dua kali. Pada Gerakan pertama,
+      semut  berpindah sejauh 5/8 meter kekanan. Gerakan kedua dengan arah yang sama,
+      semut bergerak 1/8 meter lebih jauh daripada gerakan pertama. Tentukan posisi
+      semut saat ini menggunakan garis bilangan!
+    image: {fileID: -983519124, guid: 54f97dfcbc2779a4e84b22985e700489, type: 3}
+    presetLength: 2
+    presetPartisi: 8
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 1
+      numerator: 3
+      denominator: 8
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    pions: []
+    checkMode: 0
+    lockConfig: 0
+  - kind: 1
+    text: 'Rani telah berlari sejauh 7/10 km. Ia ingin berhenti setelah melewati
+      1 km. Pilih jarak tambahan yang tepat: 2/10 km, 4/10km, atau 5/10km. Setelah
+      itu, tandai titik akhirnya pada garis bilangan.'
+    image: {fileID: 0}
+    presetLength: 2
+    presetPartisi: 10
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 1
+      numerator: 2
+      denominator: 10
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    pions: []
+    checkMode: 0
+    lockConfig: 0
+  - kind: 1
+    text: 'Tentukanlah nilai pecahan yang di tunjukkan pada gambar berikut '
+    image: {fileID: 8200319, guid: 54f97dfcbc2779a4e84b22985e700489, type: 3}
+    presetLength: 1
+    presetPartisi: 6
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 4
+      denominator: 6
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 2
+      denominator: 6
+    upperBound:
+      whole: 0
+      numerator: 4
+      denominator: 6
+    pions: []
+    checkMode: 0
+    lockConfig: 0
