@@ -1,0 +1,16 @@
+{
+    "name": "UnionInteractive.Toolkit.ProjectAuditor.Editor",
+    "rootNamespace": "UnionInteractive.Toolkit.ProjectAuditor",
+    "references": [],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

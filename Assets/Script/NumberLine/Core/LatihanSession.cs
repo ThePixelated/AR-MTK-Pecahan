@@ -6,6 +6,7 @@ public class LatihanOptions
 {
     public NumberLineLimits Line = new NumberLineLimits();       // batas garis dan sel Soal (sama dengan Eksplorasi)
     public int MaxMarkers = 3;                                   // MaxPion: titik bersurat maksimal per soal Level 2
+    public int MaxPions = 5;                                     // MaxPion: pion maksimal per soal MultiPion (soal baru berisi 3 pion)
     public bool UnlockAllLevels = false;                         // uji: semua level terbuka
 
     [UnityEngine.Header("Scaffold (mati secara default)")]
@@ -28,9 +29,11 @@ public sealed class LatihanLevel
 public readonly struct QuestionLayout
 {
     public readonly bool showLine, lineUnlocked, showPion, pionUnlocked, showMarkers;
+    public readonly bool multiPion, chooserLocked;      // MultiPion: banyak pion (lihat LatihanSession.Board); pemilih hewan terkunci
     public readonly int panelCount;
 
-    public QuestionLayout(bool showLine, bool lineUnlocked, bool showPion, bool pionUnlocked, bool showMarkers, int panelCount)
+    public QuestionLayout(bool showLine, bool lineUnlocked, bool showPion, bool pionUnlocked, bool showMarkers, int panelCount,
+                          bool multiPion = false, bool chooserLocked = false)
     {
         this.showLine = showLine;
         this.lineUnlocked = lineUnlocked;
@@ -38,6 +41,8 @@ public readonly struct QuestionLayout
         this.pionUnlocked = pionUnlocked;
         this.showMarkers = showMarkers;
         this.panelCount = panelCount;
+        this.multiPion = multiPion;
+        this.chooserLocked = chooserLocked;
     }
 
     public bool NeedsNumpad => panelCount > 0;
@@ -50,6 +55,7 @@ public readonly struct QuestionLayout
             case QuestionKind.PionOnly: return new QuestionLayout(true, false, true, true, false, 0);
             case QuestionKind.LineAndPion: return new QuestionLayout(true, true, true, true, false, 0);
             case QuestionKind.MultiPosition: return new QuestionLayout(true, false, false, false, true, q.markers != null ? q.markers.Count : 0);
+            case QuestionKind.MultiPion: return new QuestionLayout(true, !q.lockConfig, false, false, false, 0, true, q.lockConfig);
             default: return new QuestionLayout(false, false, false, false, false, 1);
         }
     }
@@ -90,6 +96,7 @@ public sealed class LatihanSession
     public int PionTick { get; private set; }
     public NumberLineSoalInput[] Soal { get; private set; } = new NumberLineSoalInput[0];
     public int[] MarkerTicks { get; private set; } = new int[0];     // tick tiap titik bersurat pada garis tetap (-1 = soal tidak sah)
+    public MultiPionBoard Board { get; private set; }                // hanya ada untuk soal MultiPion; null untuk kind lain
 
     public bool IsSolved { get; private set; }
     public bool HasChecked { get; private set; }                 // sudah dinilai (benar atau salah) sekali
@@ -157,6 +164,7 @@ public sealed class LatihanSession
         Layout = default;
         Soal = new NumberLineSoalInput[0];
         MarkerTicks = new int[0];
+        if (Board != null) { Board.Changed -= OnBoardChanged; Board = null; }
         Changed?.Invoke();
     }
 
@@ -174,11 +182,16 @@ public sealed class LatihanSession
         NumberLineQuestion q = active[QuestionIndex];
         Layout = QuestionLayout.For(q);
 
+        if (Board != null) Board.Changed -= OnBoardChanged;
+        Board = q.kind == QuestionKind.MultiPion ? new MultiPionBoard(q, Options.Line, Options.MaxPions) : null;
+        if (Board != null) Board.Changed += OnBoardChanged;
+
         bool presetLine = q.kind == QuestionKind.PionOnly || q.kind == QuestionKind.MultiPosition;
         Config = presetLine
             ? new NumberLineConfig(Math.Clamp(q.presetLength, Options.Line.MinLength, Options.Line.MaxLength),
                                    Math.Clamp(q.presetPartisi, Options.Line.MinPartisi, Options.Line.MaxPartisi))
             : DefaultConfig();
+        if (Board != null) Config = Board.Config;      // MultiPion: panjang dari soal, partisi mengikuti pion yang dipilih
         PionTick = 0;
 
         Soal = new NumberLineSoalInput[Layout.panelCount];
@@ -206,6 +219,13 @@ public sealed class LatihanSession
     {
         if (Current == null || !Layout.lineUnlocked) return LatihanConfigResult.Locked;
 
+        if (Board != null)
+        {
+            // MultiPion: hanya panjang yang bisa diubah siswa; partisi garis mengikuti pion yang dipilih
+            if (length < Options.Line.MinLength || length > Options.Line.MaxLength) return LatihanConfigResult.LengthOutOfRange;
+            return Board.ApplyLength(length) ? LatihanConfigResult.Applied : LatihanConfigResult.Unchanged;
+        }
+
         NumberLineLimits l = Options.Line;
         if (length < l.MinLength || length > l.MaxLength) return LatihanConfigResult.LengthOutOfRange;
         if (partisi < l.MinPartisi || partisi > l.MaxPartisi) return LatihanConfigResult.PartisiOutOfRange;
@@ -227,6 +247,13 @@ public sealed class LatihanSession
         PionTick = clamped;
         Changed?.Invoke();
         return clamped;
+    }
+
+    // Papan MultiPion berubah (pion dipilih, ditaruh, dicabut, atau panjang garis berubah): Config mengikuti partisi pion yang dipilih
+    void OnBoardChanged()
+    {
+        Config = Board.Config;
+        Changed?.Invoke();
     }
 
     // ---------- penilaian ----------
@@ -251,6 +278,10 @@ public sealed class LatihanSession
 
             case QuestionKind.MultiPosition:
                 CheckMarkers(q, result);
+                break;
+
+            case QuestionKind.MultiPion:
+                result.outcome = Board.Evaluate(out result.indicators);
                 break;
 
             default:

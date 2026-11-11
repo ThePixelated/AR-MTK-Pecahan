@@ -43,6 +43,27 @@ MonoBehaviour:
       whole: 0
       numerator: 0
       denominator: 0
+    pions:
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    checkMode: 0
+    lockConfig: 1
   - kind: 0
     text: Atur garis bilangan supaya pecahan 1/2 bisa ditandai tepat pada salah satu
       garis.
@@ -83,7 +104,85 @@ MonoBehaviour:
       whole: 0
       numerator: 0
       denominator: 0
-  - kind: 1
+    pions:
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    checkMode: 0
+    lockConfig: 1
+  - kind: 3
+    text: Atur garis bilangan, lalu letakkan hewan pada posisi {target}.
+    image: {fileID: 0}
+    presetLength: 2
+    presetPartisi: 4
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 3
+      numerator: 1
+      denominator: 5
+    markers:
+    - whole: 0
+      numerator: 3
+      denominator: 4
+    - whole: 0
+      numerator: 1
+      denominator: 4
+    - whole: 1
+      numerator: 2
+      denominator: 4
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    pions:
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    checkMode: 0
+    lockConfig: 1
+  - kind: 2
     text: Letakkan hewan pada posisi {target} di garis bilangan.
     image: {fileID: 0}
     presetLength: 1
@@ -110,6 +209,27 @@ MonoBehaviour:
       whole: 0
       numerator: 0
       denominator: 0
+    pions:
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    checkMode: 0
+    lockConfig: 1
   - kind: 1
     text: Tentukan posisi {target} pada garis bilangan.
     image: {fileID: 0}
@@ -137,6 +257,27 @@ MonoBehaviour:
       whole: 0
       numerator: 0
       denominator: 0
+    pions:
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    checkMode: 0
+    lockConfig: 1
   - kind: 2
     text: Atur garis bilangan, lalu letakkan hewan pada posisi {target}.
     image: {fileID: 0}
@@ -164,3 +305,24 @@ MonoBehaviour:
       whole: 0
       numerator: 0
       denominator: 0
+    pions:
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    - label: 
+      value:
+        whole: 0
+        numerator: 0
+        denominator: 0
+      partisi: 0
+    checkMode: 0
+    lockConfig: 1

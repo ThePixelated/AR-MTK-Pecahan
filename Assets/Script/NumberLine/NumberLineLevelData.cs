@@ -21,10 +21,11 @@ public class NumberLineLevelData : ScriptableObject
     void Inspect()
     {
         var limits = new NumberLineLimits();
+        var options = new LatihanOptions();
         int total = 0;
         for (int i = 0; i < questions.Count; i++)
         {
-            foreach (string issue in questions[i].Validate(limits, new LatihanOptions().MaxMarkers))
+            foreach (string issue in questions[i].Validate(limits, options.MaxMarkers, options.MaxPions))
             {
                 Debug.LogWarning($"[{name}] soal {i + 1} ({questions[i].kind}): {issue}", this);
                 total++;

@@ -1,0 +1,166 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fb9725eaa88ef54f8e1e072cdb63b33, type: 3}
+  m_Name: Contoh
+  m_EditorClassIdentifier: Assembly-CSharp::NumberLineLevelData
+  levelTitle: Level 1
+  stayUntilCorrect: 1
+  questions:
+  - kind: 0
+    text: Perhatikan gambar di samping. Atur garis bilangan supaya sesuai dengan
+      gambar tersebut.
+    image: {fileID: 778809669, guid: 759167d6203499b4bae29a83795679ce, type: 3}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 2
+      partisi: 3
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+  - kind: 0
+    text: Atur garis bilangan supaya pecahan 1/2 bisa ditandai tepat pada salah satu
+      garis.
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 1
+      partisi: 2
+    alternativeLineAnswers:
+    - length: 1
+      partisi: 4
+    - length: 1
+      partisi: 6
+    - length: 1
+      partisi: 8
+    - length: 1
+      partisi: 10
+    - length: 2
+      partisi: 2
+    - length: 2
+      partisi: 4
+    target:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+  - kind: 1
+    text: Letakkan hewan pada posisi {target} di garis bilangan.
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 3
+      denominator: 5
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+  - kind: 1
+    text: Tentukan posisi {target} pada garis bilangan.
+    image: {fileID: 0}
+    presetLength: 2
+    presetPartisi: 4
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 1
+      numerator: 3
+      denominator: 4
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+  - kind: 2
+    text: Atur garis bilangan, lalu letakkan hewan pada posisi {target}.
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 1
+      partisi: 4
+    alternativeLineAnswers: []
+    target:
+      whole: 3
+      numerator: 1
+      denominator: 5
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0

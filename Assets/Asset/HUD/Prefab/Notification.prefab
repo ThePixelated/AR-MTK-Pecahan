@@ -241,7 +241,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: -1893285014, guid: 91ba91ec5c1888a4ab9799332a79fdb9, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -304,10 +304,10 @@ MonoBehaviour:
   successColor: {r: 0.72, g: 0.92, b: 0.76, a: 1}
   warningColor: {r: 1, g: 0.9, b: 0.6, a: 1}
   errorColor: {r: 0.98, g: 0.74, b: 0.74, a: 1}
-  infoIcon: {fileID: 0}
-  successIcon: {fileID: 0}
-  warningIcon: {fileID: 0}
-  errorIcon: {fileID: 0}
+  infoIcon: {fileID: 1614588344, guid: 91ba91ec5c1888a4ab9799332a79fdb9, type: 3}
+  successIcon: {fileID: -1151447389, guid: 91ba91ec5c1888a4ab9799332a79fdb9, type: 3}
+  warningIcon: {fileID: 150064487, guid: 91ba91ec5c1888a4ab9799332a79fdb9, type: 3}
+  errorIcon: {fileID: 494984783, guid: 91ba91ec5c1888a4ab9799332a79fdb9, type: 3}
 --- !u!1 &4702450847503656510
 GameObject:
   m_ObjectHideFlags: 0

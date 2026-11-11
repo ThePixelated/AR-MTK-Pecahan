@@ -1,15 +1,15 @@
 // ============================================================================
-//  ProjectScriptAuditor.cs
-//  Letakkan di:  Assets/Editor/ProjectScriptAuditor.cs   (folder "Editor" WAJIB)
-//  Menu:         Tools > Script Auditor > Open Window
+//  ScriptAuditor.cs  -  Union Project Auditor / Script Auditor
+//  Letakkan di folder Editor, mis. Assets/UnionInteractive/ProjectAuditor/Editor/
+//  (bersama ObjectsAuditor.cs dan asmdef). Menu: Tools > Union Project Auditor > Open Window
 //
-//  Tujuan:
-//   1. Bedah semua component script buatan sendiri di scene / prefab.
-//   2. Evaluasi field serialized -> cari referensi kosong (potensi NullReferenceException).
-//   3. Cari penyebab error build-only, terutama:
-//        "A scripted object (script unknown or not yet loaded) has a different
-//         serialization layout when loading. (Read 48 bytes but expected 484 bytes)"
-//   4. Scan source *.cs di folder Scripts (pola kode yang aman di Editor tapi pecah di APK).
+//  Script Auditor:
+//   1. Bedah component script buatan sendiri di scene / prefab / asset.
+//   2. Evaluasi field serialized -> referensi kosong (potensi NullReferenceException).
+//   3. Cari penyebab error build-only, mis. "different serialization layout when loading":
+//      script tidak ikut player, #if UNITY_EDITOR pada field/class, Missing Script, GUID/.meta rusak.
+//   4. Scan source *.cs, Build Settings, Resources, YAML (GUID putus), file .meta.
+//   5. Fix aman (konfirmasi + backup otomatis ke Bin, bisa di-restore).
 // ============================================================================
 using System;
 using System.Collections.Generic;
@@ -27,7 +27,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
-namespace ScriptAudit
+namespace UnionInteractive.Toolkit.ProjectAuditor
 {
     // ------------------------------------------------------------------ MODEL
     public enum Sev { Info = 0, Warning = 1, Error = 2 }
@@ -82,6 +82,7 @@ namespace ScriptAudit
         public bool resourcesCheck = true;
         public bool assetScan = true;
         public bool metaCheck = true;
+        public string logoGuid = "";           // logo header (Texture2D) - dipilih di Opsi
         public string originalProject = "";   // salinan project lama (opsional) untuk bandingkan GUID
         public SceneScope sceneScope = SceneScope.BuildScenes;
         public bool scanPrefabs = true;
@@ -306,8 +307,7 @@ namespace ScriptAudit
             {
                 issues.Add(new AuditIssue
                 {
-                    severity = Sev.Error,
-                    category = "Source Scan",
+                    severity = Sev.Error, category = "Source Scan",
                     message = "Folder scripts '" + o.scriptsRoot + "' tidak ditemukan. Atur path-nya di window."
                 });
                 return res;
@@ -347,12 +347,9 @@ namespace ScriptAudit
                     if (!editorFolder && region != Region.EditorOnly && EditorApiRx.IsMatch(line))
                         issues.Add(new AuditIssue
                         {
-                            severity = Sev.Error,
-                            category = "Editor API",
+                            severity = Sev.Error, category = "Editor API",
                             message = "API UnityEditor dipakai di script runtime di luar #if UNITY_EDITOR. Build bisa gagal compile / script tidak lengkap.",
-                            detail = Short(t),
-                            assetPath = path,
-                            line = ln
+                            detail = Short(t), assetPath = path, line = ln
                         });
 
                     // 2. deklarasi class
@@ -367,14 +364,11 @@ namespace ScriptAudit
                             if (region == Region.EditorOnly)
                                 issues.Add(new AuditIssue
                                 {
-                                    severity = Sev.Error,
-                                    category = "Serialization Layout",
+                                    severity = Sev.Error, category = "Serialization Layout",
                                     message = "Class '" + cname + "' (MonoBehaviour/ScriptableObject) dibungkus #if UNITY_EDITOR. " +
                                               "Di Editor class ada, di build TIDAK ada -> component yang ter-attach jadi 'script unknown' " +
                                               "(persis pola error 'different serialization layout').",
-                                    detail = Short(t),
-                                    assetPath = path,
-                                    line = ln
+                                    detail = Short(t), assetPath = path, line = ln
                                 });
                             else if (!t.Contains("abstract"))
                                 monoClasses.Add(cname);
@@ -396,9 +390,7 @@ namespace ScriptAudit
                                     ? "Field serialized berada di dalam #if UNITY_EDITOR / #if !UNITY_EDITOR. Layout serialisasi Editor != Player. " +
                                       "Ini penyebab klasik 'different serialization layout when loading'."
                                     : "Field serialized berada di dalam blok #if kondisional. Layout bisa berbeda antar platform/konfigurasi build.",
-                                detail = Short(t),
-                                assetPath = path,
-                                line = ln
+                                detail = Short(t), assetPath = path, line = ln
                             });
                         }
                     }
@@ -411,12 +403,8 @@ namespace ScriptAudit
                             if (!Rules[r].rx.IsMatch(line)) continue;
                             issues.Add(new AuditIssue
                             {
-                                severity = Rules[r].sev,
-                                category = Rules[r].cat,
-                                message = Rules[r].msg,
-                                detail = Short(t),
-                                assetPath = path,
-                                line = ln
+                                severity = Rules[r].sev, category = Rules[r].cat, message = Rules[r].msg,
+                                detail = Short(t), assetPath = path, line = ln
                             });
                         }
 
@@ -431,8 +419,7 @@ namespace ScriptAudit
                 if (monoClasses.Count > 0 && !monoClasses.Contains(fileName))
                     issues.Add(new AuditIssue
                     {
-                        severity = Sev.Warning,
-                        category = "Script Naming",
+                        severity = Sev.Warning, category = "Script Naming",
                         message = "File '" + fileName + ".cs' tidak berisi MonoBehaviour/ScriptableObject bernama '" + fileName +
                                   "' (ada: " + string.Join(", ", monoClasses) + "). Nama class harus sama dengan nama file agar bisa di-attach.",
                         assetPath = path
@@ -440,8 +427,7 @@ namespace ScriptAudit
                 else if (monoClasses.Count > 1)
                     issues.Add(new AuditIssue
                     {
-                        severity = Sev.Info,
-                        category = "Script Naming",
+                        severity = Sev.Info, category = "Script Naming",
                         message = "Ada " + monoClasses.Count + " MonoBehaviour dalam satu file (" + string.Join(", ", monoClasses) +
                                   "). Hanya yang namanya sama dengan nama file yang bisa di-attach dengan aman.",
                         assetPath = path
@@ -474,7 +460,7 @@ namespace ScriptAudit
             }
             catch (Exception e)
             {
-                Debug.LogWarning("[ScriptAudit] Gagal membaca assembly player: " + e.Message);
+                Debug.LogWarning("[UnionAuditor] Gagal membaca assembly player: " + e.Message);
                 return null;
             }
             return set.Count > 0 ? set : null;
@@ -516,8 +502,7 @@ namespace ScriptAudit
             {
                 issues.Add(new AuditIssue
                 {
-                    severity = Sev.Info,
-                    category = "Player Availability",
+                    severity = Sev.Info, category = "Player Availability",
                     message = "Daftar assembly player tidak bisa dibaca; pengecekan 'script ikut build?' dilewati."
                 });
                 return;
@@ -563,8 +548,7 @@ namespace ScriptAudit
                 if (ms != null && ms.GetClass() == null)
                     issues.Add(new AuditIssue
                     {
-                        severity = Sev.Error,
-                        category = "Missing Class",
+                        severity = Sev.Error, category = "Missing Class",
                         message = "Script dipakai oleh [" + users + "] tapi tidak punya class valid di Editor " +
                                   "(nama file != nama class, error compile, atau class dibungkus #if).",
                         assetPath = sp
@@ -573,8 +557,7 @@ namespace ScriptAudit
                 if (!playerFiles.Contains(sp))
                     issues.Add(new AuditIssue
                     {
-                        severity = Sev.Error,
-                        category = "Not In Player Build",
+                        severity = Sev.Error, category = "Not In Player Build",
                         message = "Script dipakai oleh [" + users + "] tetapi TIDAK dikompilasi ke player (" + WhyNotInPlayer(sp) + "). " +
                                   "Di APK component-nya jadi 'script unknown' -> cocok dengan error 'different serialization layout'.",
                         assetPath = sp
@@ -617,12 +600,9 @@ namespace ScriptAudit
                 if (!File.Exists(s.path))
                     issues.Add(new AuditIssue
                     {
-                        severity = Sev.Error,
-                        category = "Build Settings",
-                        message = "Scene di Build Settings tidak ditemukan di disk: " + s.path,
-                        assetPath = s.path,
-                        fix = "removeBuildScene",
-                        fixArg1 = AuditUtil.Norm(s.path)
+                        severity = Sev.Error, category = "Build Settings",
+                        message = "Scene di Build Settings tidak ditemukan di disk: " + s.path, assetPath = s.path,
+                        fix = "removeBuildScene", fixArg1 = AuditUtil.Norm(s.path)
                     });
 
             if (src == null) return;
@@ -641,10 +621,8 @@ namespace ScriptAudit
 
                 var issue = new AuditIssue
                 {
-                    severity = caseOnly ? Sev.Warning : Sev.Error,
-                    category = "Scene Transition",
-                    assetPath = r.file,
-                    line = r.line
+                    severity = caseOnly ? Sev.Warning : Sev.Error, category = "Scene Transition",
+                    assetPath = r.file, line = r.line
                 };
                 if (caseOnly)
                 {
@@ -691,13 +669,11 @@ namespace ScriptAudit
                 bool caseOnly = ciMap.TryGetValue(v, out correct);
                 var issue = new AuditIssue
                 {
-                    severity = caseOnly ? Sev.Error : Sev.Warning,
-                    category = "Resources",
+                    severity = caseOnly ? Sev.Error : Sev.Warning, category = "Resources",
                     message = caseOnly
                         ? "Resources.Load(\"" + r.value + "\"): beda huruf besar/kecil dengan aset aslinya. Bisa lolos di Editor (Windows) tapi null di Android."
                         : "Resources.Load(\"" + r.value + "\"): tidak ditemukan di folder Resources manapun.",
-                    assetPath = r.file,
-                    line = r.line
+                    assetPath = r.file, line = r.line
                 };
                 if (caseOnly) { issue.fix = "replaceLiteral"; issue.fixArg1 = r.value; issue.fixArg2 = correct; }
                 issues.Add(issue);
@@ -768,8 +744,7 @@ namespace ScriptAudit
                     {
                         issues.Add(new AuditIssue
                         {
-                            severity = Sev.Warning,
-                            category = "Orphan .meta",
+                            severity = Sev.Warning, category = "Orphan .meta",
                             message = "File .meta tanpa file/folder pasangannya: " + e + " (aset dihapus/dipindah tanpa .meta-nya).",
                             assetPath = AuditUtil.Norm(Path.GetDirectoryName(e))
                         });
@@ -781,10 +756,8 @@ namespace ScriptAudit
                     {
                         issues.Add(new AuditIssue
                         {
-                            severity = Sev.Error,
-                            category = "Meta Rusak",
-                            message = "File .meta tidak punya GUID yang valid: " + e,
-                            assetPath = asset
+                            severity = Sev.Error, category = "Meta Rusak",
+                            message = "File .meta tidak punya GUID yang valid: " + e, assetPath = asset
                         });
                         continue;
                     }
@@ -797,8 +770,7 @@ namespace ScriptAudit
                     if (!string.IsNullOrEmpty(dbGuid) && dbGuid != g)
                         issues.Add(new AuditIssue
                         {
-                            severity = Sev.Error,
-                            category = "Meta Mismatch",
+                            severity = Sev.Error, category = "Meta Mismatch",
                             message = "GUID di file .meta (" + g.Substring(0, 8) + "...) berbeda dengan GUID yang dipakai Unity (" +
                                       dbGuid.Substring(0, 8) + "...). .meta diubah dari luar Unity dan belum di-refresh.",
                             assetPath = asset
@@ -810,8 +782,7 @@ namespace ScriptAudit
                     if (!set.Contains(e + ".meta"))
                         issues.Add(new AuditIssue
                         {
-                            severity = Sev.Warning,
-                            category = "Missing .meta",
+                            severity = Sev.Warning, category = "Missing .meta",
                             message = "File/folder tanpa .meta: " + e + ". Unity akan membuat GUID baru, sehingga GUID berbeda di tiap mesin/clone.",
                             assetPath = e
                         });
@@ -825,8 +796,7 @@ namespace ScriptAudit
                 foreach (var m in kv.Value)
                     issues.Add(new AuditIssue
                     {
-                        severity = Sev.Error,
-                        category = "Duplicate GUID",
+                        severity = Sev.Error, category = "Duplicate GUID",
                         group = "GUID kembar " + g8 + "...  (" + kv.Value.Count + " file)",
                         message = "GUID sama dengan: " + string.Join(", ", kv.Value.Where(x => x != m).Select(x => Path.GetFileName(x)).Take(3).ToArray()) +
                                   ". Unity hanya memakai salah satunya; referensi bisa menunjuk ke file yang salah.",
@@ -1090,8 +1060,7 @@ namespace ScriptAudit
             if (skipped > 0)
                 issues.Add(new AuditIssue
                 {
-                    severity = Sev.Info,
-                    category = "Asset Scan",
+                    severity = Sev.Info, category = "Asset Scan",
                     message = skipped + " file YAML dilewati (binary / lebih dari 20 MB / tidak terbaca). Set Asset Serialization ke Force Text agar bisa dicek."
                 });
 
@@ -1140,23 +1109,19 @@ namespace ScriptAudit
                         brokenPaths.Add(a.path);
                         issues.Add(new AuditIssue
                         {
-                            severity = Sev.Error,
-                            category = "Missing Class (Asset)",
+                            severity = Sev.Error, category = "Missing Class (Asset)",
                             message = "Asset '" + name + "' menunjuk ke script '" + Path.GetFileName(sp) +
                                       "' tapi file itu tidak punya class valid (nama class != nama file, error compile, atau class dibungkus #if).",
-                            assetPath = a.path,
-                            detail = "script: " + sp
+                            assetPath = a.path, detail = "script: " + sp
                         });
                     }
                     else if (cls != null && !typeof(ScriptableObject).IsAssignableFrom(cls))
                     {
                         issues.Add(new AuditIssue
                         {
-                            severity = Sev.Warning,
-                            category = "Missing Class (Asset)",
+                            severity = Sev.Warning, category = "Missing Class (Asset)",
                             message = "Asset '" + name + "' menunjuk ke script '" + Path.GetFileName(sp) + "' yang class-nya (" + cls.Name + ") bukan ScriptableObject.",
-                            assetPath = a.path,
-                            detail = "script: " + sp
+                            assetPath = a.path, detail = "script: " + sp
                         });
                     }
                 }
@@ -1186,22 +1151,15 @@ namespace ScriptAudit
                     if (++count > MaxRefIssuesPerAsset) { extra++; continue; }
                     issues.Add(new AuditIssue
                     {
-                        severity = sev,
-                        category = "Broken Reference (Asset)",
-                        group = group,
-                        message = msg,
-                        assetPath = a.path,
-                        line = r.line
+                        severity = sev, category = "Broken Reference (Asset)", group = group,
+                        message = msg, assetPath = a.path, line = r.line
                     });
                 }
                 if (extra > 0)
                     issues.Add(new AuditIssue
                     {
-                        severity = Sev.Info,
-                        category = "Broken Reference (Asset)",
-                        group = group,
-                        message = "+" + extra + " referensi bermasalah lainnya di asset ini tidak ditampilkan.",
-                        assetPath = a.path
+                        severity = Sev.Info, category = "Broken Reference (Asset)", group = group,
+                        message = "+" + extra + " referensi bermasalah lainnya di asset ini tidak ditampilkan.", assetPath = a.path
                     });
             }
 
@@ -1336,11 +1294,9 @@ namespace ScriptAudit
                     {
                         issues.Add(new AuditIssue
                         {
-                            severity = Sev.Error,
-                            category = "Missing Script",
+                            severity = Sev.Error, category = "Missing Script",
                             message = "Component #" + i + " pada '" + go.name + "' adalah Missing Script (script dihapus / GUID rusak / class tidak ditemukan).",
-                            assetPath = container,
-                            objectPath = hp,
+                            assetPath = container, objectPath = hp,
                             fix = "removeMissingScripts"
                         });
                         continue;
@@ -1565,7 +1521,7 @@ namespace ScriptAudit
         public static string BuildReport(List<AuditIssue> issues)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("Script Auditor Report - " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            sb.AppendLine("Union Project Auditor Report - " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             sb.AppendLine("Unity " + Application.unityVersion + " | " + LastSummary);
             sb.AppendLine("Error: " + issues.Count(i => i.severity == Sev.Error) +
                           " | Warning: " + issues.Count(i => i.severity == Sev.Warning) +
@@ -1597,11 +1553,11 @@ namespace ScriptAudit
             var errors = issues.Where(i => i.severity == Sev.Error && !AuditExclusions.Contains(i)).ToList();
 
             foreach (var e in errors)
-                Debug.LogError("[ScriptAudit] [" + e.category + "] " + e.message +
+                Debug.LogError("[UnionAuditor] [" + e.category + "] " + e.message +
                                (string.IsNullOrEmpty(e.assetPath) ? "" : "  (" + e.assetPath + (e.line > 0 ? ":" + e.line : "") + ")"));
 
             if (errors.Count > 0 && o.preBuildAbort)
-                throw new BuildFailedException("[ScriptAudit] " + errors.Count + " error terdeteksi sebelum build. Lihat Console / Script Auditor window.");
+                throw new BuildFailedException("[UnionAuditor] " + errors.Count + " error terdeteksi sebelum build. Lihat Console / Script Auditor window.");
         }
     }
 
@@ -1996,8 +1952,17 @@ namespace ScriptAudit
     }
 
     // -------------------------------------------------------------------- WINDOW
-    public class ProjectScriptAuditorWindow : EditorWindow
+    public class UnionProjectAuditorWindow : EditorWindow
     {
+        // ---- Branding (ubah di sini). Logo dipilih lewat Opsi > "Logo (header)".
+        public const string ToolName = "Union Project Auditor";
+        public const string BrandTitle = "Union Studio";
+        public const string BrandDescription = "...";
+        static readonly string[] TabLabels = { "Script Auditor", "Objects Auditor" };
+
+        // Modul Objects Auditor mendaftarkan diri di sini ([InitializeOnLoad] di ObjectsAuditor.cs).
+        public static Action<EditorWindow> ObjectsAuditDraw;
+
         sealed class Section
         {
             public bool open;
@@ -2014,31 +1979,37 @@ namespace ScriptAudit
         List<BackupEntry> backups = new List<BackupEntry>();
         bool scanned, optionsFold;
         string status = "";
-        Vector2 backupScroll;
+        int tab;
+        Vector2 mainScroll, backupScroll;
         readonly Section secProblems = new Section { open = true };
         readonly Section secExcluded = new Section { open = false };
         bool backupsOpen;
         readonly Dictionary<string, bool> groupOpen = new Dictionary<string, bool>();
         readonly Dictionary<string, bool> candOpen = new Dictionary<string, bool>();
-        GUIStyle wrap, small;
+        readonly HashSet<string> selected = new HashSet<string>();
+        float listHeight = 260f;
+        Texture2D logoTex;
+        string logoGuidCached;
+        GUIStyle wrap, small, titleStyle, descStyle, toggleWrap;
+        static readonly Color SelColor = new Color(0.17f, 0.36f, 0.53f, 0.65f);
 
-        [MenuItem("Tools/Script Auditor/Open Window")]
+        [MenuItem("Tools/Union Project Auditor/Open Window")]
         static void Open()
         {
-            var w = GetWindow<ProjectScriptAuditorWindow>("Script Auditor");
-            w.minSize = new Vector2(520, 420);
+            var w = GetWindow<UnionProjectAuditorWindow>(ToolName);
+            w.minSize = new Vector2(520, 460);
         }
 
-        [MenuItem("Tools/Script Auditor/Quick Audit -> Console")]
+        [MenuItem("Tools/Union Project Auditor/Quick Audit -> Console")]
         static void QuickConsole()
         {
             var opt = AuditOptions.Load();
             var list = AuditRunner.Run(opt, false).Where(x => !AuditExclusions.Contains(x)).ToList();
             foreach (var i in list.Where(x => x.severity == Sev.Error))
-                Debug.LogError("[ScriptAudit] [" + i.category + "] " + i.message + "  (" + i.assetPath + (i.line > 0 ? ":" + i.line : "") + ")");
+                Debug.LogError("[UnionAuditor] [" + i.category + "] " + i.message + "  (" + i.assetPath + (i.line > 0 ? ":" + i.line : "") + ")");
             foreach (var i in list.Where(x => x.severity == Sev.Warning))
-                Debug.LogWarning("[ScriptAudit] [" + i.category + "] " + i.message + "  (" + i.assetPath + (i.line > 0 ? ":" + i.line : "") + ")");
-            Debug.Log("[ScriptAudit] Selesai. " + AuditRunner.LastSummary);
+                Debug.LogWarning("[UnionAuditor] [" + i.category + "] " + i.message + "  (" + i.assetPath + (i.line > 0 ? ":" + i.line : "") + ")");
+            Debug.Log("[UnionAuditor] Selesai. " + AuditRunner.LastSummary);
         }
 
         void OnEnable()
@@ -2078,32 +2049,81 @@ namespace ScriptAudit
             Repaint();
         }
 
-        // Modul lain (mis. Objects Audit) mendaftarkan diri di sini lewat [InitializeOnLoadMethod].
-        public static Action<EditorWindow> ObjectsAuditDraw;
-        int tab;
+        void Notify(string msg) { ShowNotification(new GUIContent(msg), 1.2); }
+
+        // ------------------------------------------------------------ frame
+        void InitStyles()
+        {
+            if (wrap != null) return;
+            wrap = new GUIStyle(EditorStyles.label) { wordWrap = true };
+            small = new GUIStyle(EditorStyles.miniLabel) { wordWrap = true };
+            titleStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 16 };
+            descStyle = new GUIStyle(EditorStyles.miniLabel) { wordWrap = true };
+            toggleWrap = new GUIStyle(EditorStyles.label) { wordWrap = true };
+        }
+
+        Texture2D LoadLogo()
+        {
+            string g = o != null ? o.logoGuid : "";
+            if (logoGuidCached != g) { logoGuidCached = g; logoTex = null; }
+            if (logoTex == null && !string.IsNullOrEmpty(g))
+            {
+                string p = AssetDatabase.GUIDToAssetPath(g);
+                if (!string.IsNullOrEmpty(p)) logoTex = AssetDatabase.LoadAssetAtPath<Texture2D>(p);
+            }
+            return logoTex;
+        }
+
+        void DrawHeader()
+        {
+            using (new EditorGUILayout.HorizontalScope(EditorStyles.helpBox))
+            {
+                Rect r = GUILayoutUtility.GetRect(52, 52, GUILayout.Width(52), GUILayout.Height(52));
+                var tex = LoadLogo();
+                if (tex != null) GUI.DrawTexture(r, tex, ScaleMode.ScaleToFit);
+                else GUI.Box(r, "LOGO");
+
+                using (new EditorGUILayout.VerticalScope())
+                {
+                    GUILayout.Label(BrandTitle, titleStyle);
+                    GUILayout.Label(BrandDescription, descStyle);
+                }
+            }
+        }
+
+        void DrawTabs()
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.FlexibleSpace();
+                tab = GUILayout.Toolbar(tab, TabLabels, GUI.skin.button, GUI.ToolbarButtonSize.FitToContents);
+                GUILayout.FlexibleSpace();
+            }
+            GUILayout.Space(2);
+        }
 
         void OnGUI()
         {
-            tab = GUILayout.Toolbar(tab, new[] { "Script Audit", "Objects Audit" }, GUILayout.Height(24));
-            GUILayout.Space(2);
+            if (o == null) o = AuditOptions.Load();
+            InitStyles();
+            HandleKeys();
+            listHeight = Mathf.Clamp(position.height * 0.5f, 170f, 700f);
+
+            DrawHeader();
+            DrawTabs();
+
+            mainScroll = EditorGUILayout.BeginScrollView(mainScroll);
             if (tab == 1)
             {
                 if (ObjectsAuditDraw != null) ObjectsAuditDraw(this);
-                else EditorGUILayout.HelpBox("Modul Objects Audit belum terpasang. Letakkan ObjectsAudit.cs di folder Editor.", MessageType.Info);
-                return;
+                else EditorGUILayout.HelpBox("Modul Objects Auditor belum terpasang. Letakkan ObjectsAuditor.cs di folder yang sama dengan ScriptAuditor.cs.", MessageType.Info);
             }
-            DrawScriptAudit();
+            else DrawScriptAudit();
+            EditorGUILayout.EndScrollView();
         }
 
         void DrawScriptAudit()
         {
-            if (o == null) o = AuditOptions.Load();
-            if (wrap == null)
-            {
-                wrap = new GUIStyle(EditorStyles.label) { wordWrap = true };
-                small = new GUIStyle(EditorStyles.miniLabel) { wordWrap = true };
-            }
-
             EditorGUILayout.HelpBox("Build target aktif: " + EditorUserBuildSettings.activeBuildTarget + "  |  Unity " + Application.unityVersion +
                                     "\nCek 'Not In Player Build' mengikuti build target aktif. Switch ke Android dulu sebelum audit.", MessageType.None);
 
@@ -2124,7 +2144,67 @@ namespace ScriptAudit
             DrawBackups();
         }
 
-        // ---------------------------------------------------------- sections
+        // ------------------------------------------------------------ copy / selection
+        static string FormatIssue(AuditIssue i)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("[" + i.severity + "] [" + i.category + "] " + i.message);
+            if (!string.IsNullOrEmpty(i.assetPath)) sb.AppendLine("    at " + i.assetPath + (i.line > 0 ? ":" + i.line : ""));
+            if (!string.IsNullOrEmpty(i.objectPath)) sb.AppendLine("    obj " + i.objectPath);
+            if (!string.IsNullOrEmpty(i.detail)) sb.AppendLine("    > " + i.detail);
+            if (!string.IsNullOrEmpty(i.info)) sb.AppendLine("    " + i.info);
+            return sb.ToString().TrimEnd();
+        }
+
+        static string FormatBackup(BackupEntry b)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("[Backup] " + b.description);
+            sb.AppendLine("    " + b.time + "  |  " + b.files.Count + " file" + (b.hasBuildScenes ? " + Build Settings" : ""));
+            foreach (var f in b.files) sb.AppendLine("    " + f);
+            return sb.ToString().TrimEnd();
+        }
+
+        void HandleKeys()
+        {
+            var e = Event.current;
+            if (tab != 0 || selected.Count == 0) return;
+            if (e.type == EventType.KeyDown && e.keyCode == KeyCode.C && (e.control || e.command) && !EditorGUIUtility.editingTextField)
+            {
+                var sb = new StringBuilder();
+                int n = 0;
+                foreach (var i in problems) if (selected.Contains("p:" + i.Key())) { sb.AppendLine(FormatIssue(i)); n++; }
+                foreach (var i in excludedList) if (selected.Contains("x:" + i.Key())) { sb.AppendLine(FormatIssue(i)); n++; }
+                foreach (var b in backups) if (selected.Contains("b:" + b.id)) { sb.AppendLine(FormatBackup(b)); n++; }
+                if (n > 0)
+                {
+                    EditorGUIUtility.systemCopyBuffer = sb.ToString().TrimEnd();
+                    Notify("Tersalin: " + n + " item");
+                }
+                e.Use();
+            }
+        }
+
+        // klik = pilih (biru), Ctrl+klik = tambah/hapus pilihan
+        void RowClick(Rect rect, string id)
+        {
+            var e = Event.current;
+            if (e.type != EventType.MouseDown || e.button != 0 || !rect.Contains(e.mousePosition)) return;
+            if (e.control || e.command) { if (!selected.Add(id)) selected.Remove(id); }
+            else { selected.Clear(); selected.Add(id); }
+            GUI.FocusControl(null);
+            e.Use();
+            Repaint();
+        }
+
+        static GUIContent CopyIcon()
+        {
+            var c = EditorGUIUtility.IconContent("TreeEditor.Duplicate");
+            if (c != null && c.image != null) return new GUIContent(c.image, "Salin item ini");
+            return new GUIContent("Cp", "Salin item ini");
+        }
+
+        // ------------------------------------------------------------ sections
         static bool Pass(AuditIssue i, Section st)
         {
             if (i.severity == Sev.Error && !st.showErr) return false;
@@ -2155,12 +2235,15 @@ namespace ScriptAudit
                     st.showInfo = GUILayout.Toggle(st.showInfo, "Info (" + ic + ")", "Button", GUILayout.Width(85));
                     st.search = EditorGUILayout.TextField(st.search, EditorStyles.toolbarSearchField);
                     if (GUILayout.Button("Copy", GUILayout.Width(50)))
+                    {
                         EditorGUIUtility.systemCopyBuffer = AuditRunner.BuildReport(list);
+                        Notify("Tersalin: " + list.Count + " item");
+                    }
                     if (!isExcluded && GUILayout.Button("Export", GUILayout.Width(55))) Export(list);
                 }
 
                 var shown = list.Where(i => Pass(i, st)).Take(300).ToList();
-                st.scroll = EditorGUILayout.BeginScrollView(st.scroll, GUILayout.ExpandHeight(true), GUILayout.MinHeight(110));
+                st.scroll = EditorGUILayout.BeginScrollView(st.scroll, GUILayout.Height(listHeight));
                 foreach (var it in shown.Where(i => string.IsNullOrEmpty(i.group))) DrawIssue(it, isExcluded);
                 foreach (var g in shown.Where(i => !string.IsNullOrEmpty(i.group)).GroupBy(i => i.group).ToList())
                 {
@@ -2184,74 +2267,88 @@ namespace ScriptAudit
 
         void DrawIssue(AuditIssue it, bool isExcluded)
         {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            string sid = (isExcluded ? "x:" : "p:") + it.Key();
+            bool isSel = selected.Contains(sid);
+            Rect rect = EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            if (Event.current.type == EventType.Repaint && isSel) EditorGUI.DrawRect(rect, SelColor);
+
+            using (new EditorGUILayout.HorizontalScope())
             {
-                using (new EditorGUILayout.HorizontalScope())
+                string icon = it.severity == Sev.Error ? "console.erroricon.sml" :
+                              it.severity == Sev.Warning ? "console.warnicon.sml" : "console.infoicon.sml";
+                GUILayout.Label(EditorGUIUtility.IconContent(icon), GUILayout.Width(20), GUILayout.Height(18));
+                GUILayout.Label("[" + it.category + "]", EditorStyles.boldLabel, GUILayout.ExpandWidth(false));
+                if (isExcluded && scanned && !lastKeys.Contains(it.Key()))
+                    GUILayout.Label("(tidak muncul di scan terakhir)", EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
+                GUILayout.FlexibleSpace();
+
+                if (!isExcluded && it.CanFix &&
+                    GUILayout.Button(new GUIContent("Fix", FixEngine.Describe(it)), GUILayout.Width(40)))
                 {
-                    string icon = it.severity == Sev.Error ? "console.erroricon.sml" :
-                                  it.severity == Sev.Warning ? "console.warnicon.sml" : "console.infoicon.sml";
-                    GUILayout.Label(EditorGUIUtility.IconContent(icon), GUILayout.Width(20), GUILayout.Height(18));
-                    GUILayout.Label("[" + it.category + "]", EditorStyles.boldLabel, GUILayout.ExpandWidth(false));
-                    if (isExcluded && scanned && !lastKeys.Contains(it.Key()))
-                        GUILayout.Label("(tidak muncul di scan terakhir)", EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
-                    GUILayout.FlexibleSpace();
-
-                    if (!isExcluded && it.CanFix &&
-                        GUILayout.Button(new GUIContent("Fix", FixEngine.Describe(it)), GUILayout.Width(40)))
-                    {
-                        var cap = it;
-                        EditorApplication.delayCall += () => ApplyFix(cap);
-                    }
-
-                    bool on = GUILayout.Toggle(isExcluded,
-                        new GUIContent("Ignore", isExcluded ? "Hilangkan centang untuk mengembalikan ke Problems" : "Centang untuk memindahkan ke Excluded / Ignored"),
-                        GUILayout.Width(62));
-                    if (on != isExcluded)
-                    {
-                        var cap = it; bool toExcluded = on;
-                        EditorApplication.delayCall += () => SetExcluded(cap, toExcluded);
-                    }
-
-                    if (!string.IsNullOrEmpty(it.assetPath) && GUILayout.Button("Go", GUILayout.Width(40))) Navigate(it);
+                    var cap = it;
+                    EditorApplication.delayCall += () => ApplyFix(cap);
                 }
-                EditorGUILayout.LabelField(it.message, wrap);
 
-                string loc = it.assetPath ?? "";
-                if (it.line > 0) loc += ":" + it.line;
-                if (!string.IsNullOrEmpty(it.objectPath)) loc += "   >   " + it.objectPath;
-                if (loc.Length > 0) EditorGUILayout.LabelField(loc, small);
-                if (!string.IsNullOrEmpty(it.detail)) EditorGUILayout.LabelField("> " + it.detail, small);
-                if (!string.IsNullOrEmpty(it.info)) EditorGUILayout.LabelField(it.info, small);
-
-                if (!isExcluded && (it.category == "Missing Script (Asset)" || it.category == "Missing Script (GUID)" || it.category == "Broken Reference (GUID)"))
+                bool on = GUILayout.Toggle(isExcluded,
+                    new GUIContent("Ignore", isExcluded ? "Hilangkan centang untuk mengembalikan ke Problems" : "Centang untuk memindahkan ke Excluded / Ignored"),
+                    GUILayout.Width(62));
+                if (on != isExcluded)
                 {
-                    if (it.candidates != null && it.candidates.Count > 0)
+                    var cap = it; bool toExcluded = on;
+                    EditorApplication.delayCall += () => SetExcluded(cap, toExcluded);
+                }
+
+                if (!string.IsNullOrEmpty(it.assetPath) && GUILayout.Button("Go", GUILayout.Width(40))) Navigate(it);
+            }
+            EditorGUILayout.LabelField(it.message, wrap);
+
+            if (!string.IsNullOrEmpty(it.detail)) EditorGUILayout.LabelField("> " + it.detail, small);
+            if (!string.IsNullOrEmpty(it.info)) EditorGUILayout.LabelField(it.info, small);
+
+            if (!isExcluded && (it.category == "Missing Script (Asset)" || it.category == "Missing Script (GUID)" || it.category == "Broken Reference (GUID)"))
+            {
+                if (it.candidates != null && it.candidates.Count > 0)
+                {
+                    string ck = it.Key();
+                    bool co;
+                    candOpen.TryGetValue(ck, out co);
+                    co = EditorGUILayout.Foldout(co, "Kandidat (" + it.candidates.Count + ")", true);
+                    candOpen[ck] = co;
+                    if (co)
                     {
-                        string ck = it.Key();
-                        bool co;
-                        candOpen.TryGetValue(ck, out co);
-                        co = EditorGUILayout.Foldout(co, "Kandidat script (" + it.candidates.Count + ")", true);
-                        candOpen[ck] = co;
-                        if (co)
+                        foreach (var cd in it.candidates)
                         {
-                            foreach (var cd in it.candidates)
+                            using (new EditorGUILayout.HorizontalScope())
                             {
-                                using (new EditorGUILayout.HorizontalScope())
+                                GUILayout.Space(14);
+                                EditorGUILayout.LabelField(cd.label, small);
+                                if (GUILayout.Button(new GUIContent("Pakai", "Remap GUID lama ke aset ini di semua file yang memakainya"), GUILayout.Width(50)))
                                 {
-                                    GUILayout.Space(14);
-                                    EditorGUILayout.LabelField(cd.label, small);
-                                    if (GUILayout.Button(new GUIContent("Pakai", "Re-link asset ini ke script tersebut"), GUILayout.Width(50)))
-                                    {
-                                        var parent = it; var cand = cd;
-                                        EditorApplication.delayCall += () => ApplyCandidate(parent, cand);
-                                    }
+                                    var parent = it; var cand = cd;
+                                    EditorApplication.delayCall += () => ApplyCandidate(parent, cand);
                                 }
                             }
                         }
                     }
-                    else EditorGUILayout.LabelField("Tidak ada kandidat otomatis. Isi 'Salinan project asli' di Opsi, atau perbaiki manual.", small);
+                }
+                else EditorGUILayout.LabelField("Tidak ada kandidat otomatis. Isi 'Salinan project asli' di Opsi, atau perbaiki manual.", small);
+            }
+
+            // baris bawah: lokasi (kiri) + tombol copy kecil (kanan bawah)
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                string loc = it.assetPath ?? "";
+                if (it.line > 0) loc += ":" + it.line;
+                if (!string.IsNullOrEmpty(it.objectPath)) loc += "   >   " + it.objectPath;
+                EditorGUILayout.LabelField(loc, small);
+                if (GUILayout.Button(CopyIcon(), EditorStyles.miniButton, GUILayout.Width(26), GUILayout.Height(18)))
+                {
+                    EditorGUIUtility.systemCopyBuffer = FormatIssue(it);
+                    Notify("Tersalin: 1 item");
                 }
             }
+            EditorGUILayout.EndVertical();
+            RowClick(rect, sid);
         }
 
         void SetExcluded(AuditIssue it, bool toExcluded)
@@ -2281,11 +2378,8 @@ namespace ScriptAudit
         {
             var fx = new AuditIssue
             {
-                fix = "remapGuid",
-                assetPath = parent.assetPath,
-                objectPath = parent.objectPath,
-                fixArg1 = parent.fixArg1,
-                fixArg2 = AssetDatabase.AssetPathToGUID(c.scriptPath)
+                fix = "remapGuid", assetPath = parent.assetPath, objectPath = parent.objectPath,
+                fixArg1 = parent.fixArg1, fixArg2 = AssetDatabase.AssetPathToGUID(c.scriptPath)
             };
             string res;
             bool ok = FixEngine.Apply(fx, out res);
@@ -2300,7 +2394,7 @@ namespace ScriptAudit
             Repaint();
         }
 
-        // ------------------------------------------------------- backups / bin
+        // ------------------------------------------------------------ backups / bin
         void DrawBackups()
         {
             backupsOpen = EditorGUILayout.BeginFoldoutHeaderGroup(backupsOpen, "Backups / Bin (" + backups.Count + ")");
@@ -2317,29 +2411,41 @@ namespace ScriptAudit
                     if (GUILayout.Button("Kosongkan Bin")) EditorApplication.delayCall += ClearBin;
                 }
 
-                backupScroll = EditorGUILayout.BeginScrollView(backupScroll, GUILayout.ExpandHeight(true), GUILayout.MinHeight(90));
+                backupScroll = EditorGUILayout.BeginScrollView(backupScroll, GUILayout.Height(listHeight * 0.8f));
                 if (backups.Count == 0) EditorGUILayout.LabelField("Belum ada backup. Backup dibuat otomatis setiap kali Fix dijalankan.", small);
                 foreach (var b in backups)
                 {
-                    using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+                    string sid = "b:" + b.id;
+                    bool isSel = selected.Contains(sid);
+                    Rect rect = EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                    if (Event.current.type == EventType.Repaint && isSel) EditorGUI.DrawRect(rect, SelColor);
+
+                    using (new EditorGUILayout.HorizontalScope())
                     {
-                        using (new EditorGUILayout.HorizontalScope())
+                        EditorGUILayout.LabelField(b.description, wrap);
+                        if (GUILayout.Button("Restore", GUILayout.Width(65)))
                         {
-                            EditorGUILayout.LabelField(b.description, wrap);
-                            if (GUILayout.Button("Restore", GUILayout.Width(65)))
-                            {
-                                var cap = b;
-                                EditorApplication.delayCall += () => DoRestore(cap);
-                            }
-                            if (GUILayout.Button("Hapus", GUILayout.Width(50)))
-                            {
-                                var cap = b;
-                                EditorApplication.delayCall += () => { BackupStore.Delete(cap); backups = BackupStore.List(); Repaint(); };
-                            }
+                            var cap = b;
+                            EditorApplication.delayCall += () => DoRestore(cap);
                         }
-                        EditorGUILayout.LabelField(b.time + "  |  " + b.files.Count + " file" + (b.hasBuildScenes ? " + Build Settings" : ""), small);
-                        foreach (var f in b.files.Take(4)) EditorGUILayout.LabelField("   " + f, small);
+                        if (GUILayout.Button("Hapus", GUILayout.Width(50)))
+                        {
+                            var cap = b;
+                            EditorApplication.delayCall += () => { BackupStore.Delete(cap); backups = BackupStore.List(); Repaint(); };
+                        }
                     }
+                    foreach (var f in b.files.Take(4)) EditorGUILayout.LabelField("   " + f, small);
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        EditorGUILayout.LabelField(b.time + "  |  " + b.files.Count + " file" + (b.hasBuildScenes ? " + Build Settings" : ""), small);
+                        if (GUILayout.Button(CopyIcon(), EditorStyles.miniButton, GUILayout.Width(26), GUILayout.Height(18)))
+                        {
+                            EditorGUIUtility.systemCopyBuffer = FormatBackup(b);
+                            Notify("Tersalin: 1 item");
+                        }
+                    }
+                    EditorGUILayout.EndVertical();
+                    RowClick(rect, sid);
                 }
                 EditorGUILayout.EndScrollView();
             }
@@ -2348,7 +2454,7 @@ namespace ScriptAudit
 
         void ClearBin()
         {
-            if (!EditorUtility.DisplayDialog("Kosongkan Bin", "Hapus SEMUA backup Script Auditor? Ini tidak bisa dibatalkan.", "Hapus semua", "Batal")) return;
+            if (!EditorUtility.DisplayDialog("Kosongkan Bin", "Hapus SEMUA backup Union Project Auditor? Ini tidak bisa dibatalkan.", "Hapus semua", "Batal")) return;
             BackupStore.Clear();
             backups = BackupStore.List();
             Repaint();
@@ -2373,8 +2479,12 @@ namespace ScriptAudit
         }
 
         // ------------------------------------------------------------ options
+        bool Tog(string label, bool v) { return EditorGUILayout.ToggleLeft(new GUIContent(label), v, toggleWrap); }
+
         void DrawOptions()
         {
+            float lw = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 150;
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 using (new EditorGUILayout.HorizontalScope())
@@ -2394,14 +2504,17 @@ namespace ScriptAudit
                 }
                 o.excludeFolders = EditorGUILayout.TextField("Exclude folders", o.excludeFolders);
                 o.ignoreFieldPatterns = EditorGUILayout.TextField("Ignore fields", o.ignoreFieldPatterns);
-                EditorGUILayout.LabelField("Exclude: pisah dengan ';'  |  Ignore fields: nama field/Class.field, boleh wildcard (debug*, _opt*)", small);
+                EditorGUILayout.LabelField("Exclude: pisah dengan ';'  |  Ignore fields: nama field atau Class.field, boleh wildcard (debug*, _opt*)", small);
 
-                o.sourceScan = EditorGUILayout.Toggle("Scan source .cs (#if, heuristik)", o.sourceScan);
-                o.playerAvailability = EditorGUILayout.Toggle("Script dipakai build ikut player?", o.playerAvailability);
-                o.buildSettings = EditorGUILayout.Toggle("Cek Build Settings & LoadScene", o.buildSettings);
-                o.resourcesCheck = EditorGUILayout.Toggle("Cek Resources.Load (case)", o.resourcesCheck);
-                o.assetScan = EditorGUILayout.Toggle("Scan YAML (scene/prefab/asset): script & GUID putus", o.assetScan);
-                o.metaCheck = EditorGUILayout.Toggle("Cek file .meta (orphan, hilang, GUID kembar)", o.metaCheck);
+                GUILayout.Space(4);
+                o.sourceScan = Tog("Scan source .cs (#if, pola kode berisiko)", o.sourceScan);
+                o.playerAvailability = Tog("Cek script yang dipakai scene/prefab ikut dikompilasi ke player", o.playerAvailability);
+                o.buildSettings = Tog("Cek Build Settings dan LoadScene", o.buildSettings);
+                o.resourcesCheck = Tog("Cek Resources.Load (huruf besar/kecil path)", o.resourcesCheck);
+                o.assetScan = Tog("Scan YAML (scene, prefab, asset): script dan GUID putus", o.assetScan);
+                o.metaCheck = Tog("Cek file .meta (orphan, hilang, GUID kembar)", o.metaCheck);
+
+                GUILayout.Space(4);
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     o.originalProject = EditorGUILayout.TextField("Salinan project asli", o.originalProject);
@@ -2412,18 +2525,31 @@ namespace ScriptAudit
                     }
                 }
                 EditorGUILayout.LabelField("Opsional: folder hasil ekstrak project lama (punya .meta asli). Dipakai untuk menebak GUID lama -> aset sekarang.", small);
+
+                GUILayout.Space(4);
                 o.sceneScope = (SceneScope)EditorGUILayout.EnumPopup("Scan scene (Full)", o.sceneScope);
-                o.scanPrefabs = EditorGUILayout.Toggle("Scan semua prefab (Full)", o.scanPrefabs);
-                o.scanUnityEventsAll = EditorGUILayout.Toggle("Cek UnityEvent semua component", o.scanUnityEventsAll);
-                o.includePackages = EditorGUILayout.Toggle("Sertakan script dari Packages", o.includePackages);
-                o.inventory = EditorGUILayout.Toggle("Inventaris tiap component (Info)", o.inventory);
-                o.preBuildCheck = EditorGUILayout.Toggle("Audit otomatis sebelum build", o.preBuildCheck);
+                o.scanPrefabs = Tog("Scan semua prefab (Full)", o.scanPrefabs);
+                o.scanUnityEventsAll = Tog("Cek UnityEvent di semua component", o.scanUnityEventsAll);
+                o.includePackages = Tog("Sertakan script dari Packages", o.includePackages);
+                o.inventory = Tog("Inventaris tiap component (Info)", o.inventory);
+                o.preBuildCheck = Tog("Audit otomatis sebelum build", o.preBuildCheck);
                 using (new EditorGUI.DisabledScope(!o.preBuildCheck))
-                    o.preBuildAbort = EditorGUILayout.Toggle("   Batalkan build jika ada Error", o.preBuildAbort);
+                    o.preBuildAbort = Tog("Batalkan build jika ada Error", o.preBuildAbort);
+
+                GUILayout.Space(4);
+                var cur = LoadLogo();
+                var nl = (Texture2D)EditorGUILayout.ObjectField("Logo (header)", cur, typeof(Texture2D), false);
+                if (nl != cur)
+                {
+                    o.logoGuid = nl != null ? AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(nl)) : "";
+                    logoTex = nl;
+                    logoGuidCached = o.logoGuid;
+                }
             }
+            EditorGUIUtility.labelWidth = lw;
         }
 
-        // --------------------------------------------------------- navigation
+        // ------------------------------------------------------------ navigation / export
         static void Navigate(AuditIssue it)
         {
             if (string.IsNullOrEmpty(it.assetPath)) return;

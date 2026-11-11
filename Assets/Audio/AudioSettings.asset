@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cb3333b07a212f4995e1bef4b4e9a0b, type: 3}
+  m_Name: AudioSettings
+  m_EditorClassIdentifier: Assembly-CSharp::AudioSettings
+  master: 0.718
+  music: 0.35
+  ui: 0.8
+  feedback: 0.9
+  world: 0.8
+  voice: 1
+  muteAll: 1
+  persistVolumes: 1
+  prefsPrefix: ARP.Audio.
+  voicePool: 24
+  musicCrossfadeSeconds: 1.2
+  worldMuffleGain: 0.35
+  worldMuffleSeconds: 0.4
+  pauseWhenAppPaused: 1
+  logMissingCues: 1
+  logPlays: 0

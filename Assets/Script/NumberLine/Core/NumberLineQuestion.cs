@@ -8,13 +8,31 @@ public enum QuestionKind
     PionOnly,        // garis sudah ditetapkan; siswa menaruh pion di nilai target
     LineAndPion,     // siswa mengatur garis lalu menaruh pion di nilai target
     MultiPosition,   // garis sudah ditetapkan; beberapa titik bersurat (A, B, C) dibaca nilainya
-    Comparison       // soal teks dengan satu jawaban pecahan; tanpa garis
+    Comparison,      // soal teks dengan satu jawaban pecahan; tanpa garis
+    MultiPion        // garis tetap; tiap tokoh satu pion yang digeser siswa (partisi garis mengikuti pion yang dipilih). Paling akhir supaya nilai enum aset lama tidak bergeser.
 }
 
 public enum ComparisonRule
 {
     Exact,           // jawaban harus bernilai sama dengan 'exact'
     StrictlyBetween  // jawaban harus tepat di antara lowerBound dan upperBound (batas sendiri tidak dihitung)
+}
+
+public enum PionCheckMode
+{
+    ByValue,   // pion harus bernilai sama dengan jawaban (5/10 sama dengan 1/2, apa pun partisinya)
+    ByTick     // pion harus di tick yang sama pada partisi yang sama dengan jawaban (5/10 hanya benar di tick 5 pada partisi 10)
+}
+
+// Satu tokoh pada soal MultiPion
+[Serializable]
+public class PionAnswer
+{
+    public string label = "";            // teks tombol tokoh di sisi kiri (mis. "Rahmi"); kosong = A, B, C ...
+    public FractionValue value;          // nilai yang harus ditempati pion
+    [Min(0)] public int partisi = 0;     // partisi garis saat pion ini aktif; 0 = penyebut 'value' apa adanya (5/10 jadi 10)
+
+    public int ResolvedPartisi => partisi > 0 ? partisi : (value.denominator > 0 ? value.denominator : 0);
 }
 
 [Serializable]
@@ -82,11 +100,17 @@ public class NumberLineQuestion
     public FractionValue lowerBound;
     public FractionValue upperBound;
 
+    [Header("MultiPion: tiap tokoh satu pion yang digeser (panjang garis = presetLength)")]
+    public List<PionAnswer> pions = new List<PionAnswer> { new PionAnswer(), new PionAnswer(), new PionAnswer() };   // default 3 pion
+    public PionCheckMode checkMode = PionCheckMode.ByValue;
+    [Tooltip("Kunci pemilih hewan dan pengaturan panjang garis. Matikan kalau siswa boleh mengubahnya.")]
+    public bool lockConfig = true;
+
     // Teks soal dengan {target} diganti nilai target
     public string FormattedText() => (text ?? "").Replace("{target}", target.ToText());
 
     // Memeriksa isian soal terhadap batas yang berlaku; daftar kosong = soal sah
-    public List<string> Validate(NumberLineLimits limits, int maxMarkers)
+    public List<string> Validate(NumberLineLimits limits, int maxMarkers, int maxPions = 5)
     {
         var issues = new List<string>();
 
@@ -128,6 +152,37 @@ public class NumberLineQuestion
                         issues.Add($"titik {label} ({markers[i].ToText()}) tidak jatuh di tick pada garis {presetLength} x {presetPartisi}");
                 }
                 break;
+
+            case QuestionKind.MultiPion:
+                {
+                    if (presetLength < limits.MinLength || presetLength > limits.MaxLength)
+                        issues.Add($"garis tetap: panjang {presetLength} di luar {limits.MinLength}-{limits.MaxLength}");
+
+                    int pionCount = pions != null ? pions.Count : 0;
+                    if (pionCount < 1) issues.Add("belum ada pion");
+                    else if (pionCount > maxPions) issues.Add($"{pionCount} pion melebihi batas {maxPions}");
+
+                    for (int i = 0; i < pionCount; i++)
+                    {
+                        PionAnswer a = pions[i];
+                        string who = string.IsNullOrWhiteSpace(a.label) ? NumberLineLabels.Letter(i) : a.label.Trim();
+                        if (!a.value.IsValid) { issues.Add($"nilai pion {who} belum diisi"); continue; }
+
+                        int p = a.ResolvedPartisi;
+                        if (p < limits.MinPartisi || p > limits.MaxPartisi)
+                        {
+                            issues.Add($"pion {who}: partisi {p} di luar {limits.MinPartisi}-{limits.MaxPartisi}");
+                            continue;
+                        }
+
+                        NumberLineReach reach = new NumberLineConfig(presetLength, p).Classify(a.value.ToFraction(), out _);
+                        if (reach == NumberLineReach.BeyondLine) issues.Add($"pion {who} ({a.value.ToText()}) melewati garis panjang {presetLength}");
+                        else if (reach == NumberLineReach.NotOnPartition) issues.Add($"pion {who} ({a.value.ToText()}) tidak jatuh di tick pada partisi {p}");
+                        else if (checkMode == PionCheckMode.ByTick && p != a.value.denominator)
+                            issues.Add($"pion {who}: mode ByTick, partisi {p} harus sama dengan penyebut {a.value.denominator}");
+                    }
+                    break;
+                }
 
             case QuestionKind.Comparison:
                 if (rule == ComparisonRule.Exact)

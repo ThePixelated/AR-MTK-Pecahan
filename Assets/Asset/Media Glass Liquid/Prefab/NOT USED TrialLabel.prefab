@@ -445,7 +445,7 @@ GameObject:
   - component: {fileID: 5610582874297071616}
   - component: {fileID: 606490893554926604}
   m_Layer: 0
-  m_Name: TrialLabel
+  m_Name: NOT USED TrialLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -520,7 +520,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!114 &606490893554926604
 MonoBehaviour:
   m_ObjectHideFlags: 0

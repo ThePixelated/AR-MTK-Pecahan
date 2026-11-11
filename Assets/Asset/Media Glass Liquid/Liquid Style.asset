@@ -43,7 +43,7 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 5
     m_NumAlphaKeys: 5
-  showInnerLines: 1
+  showInnerLines: 0
   showOuterLines: 1
   lineColor: {r: 0, g: 0, b: 0, a: 1}
   lineWidth: 0.0222

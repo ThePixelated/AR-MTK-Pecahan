@@ -10,8 +10,8 @@ public sealed class Media1Session : IPourSession
 
     public Media1Limits Limits { get; }
 
-    public LiquidContainer A { get; } = new LiquidContainer("Gelas A (air)", ContainerRole.Give);
-    public LiquidContainer B { get; } = new LiquidContainer("Gelas B (sirup)", ContainerRole.Give);
+    public LiquidContainer A { get; } = new LiquidContainer("Gelas A (sirup)", ContainerRole.Give);
+    public LiquidContainer B { get; } = new LiquidContainer("Gelas B (air)", ContainerRole.Give);
     public LiquidContainer W { get; } = new LiquidContainer("Wadah", ContainerRole.Give | ContainerRole.Receive);
 
     readonly List<LiquidContainer> finalCups = new List<LiquidContainer>();
