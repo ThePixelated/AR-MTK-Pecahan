@@ -17,8 +17,8 @@ public class TrialGridView : MonoBehaviour
     [SerializeField] Vector3 labelOffset = new Vector3(0f, 0.001f, -0.07f);   // posisi label relatif wadah (depan = -Z)
 
     [Header("Label dan animasi")]
-    [SerializeField] string waterSpriteName = "air";                    // nama sprite di TMP Sprite Asset
-    [SerializeField] string syrupSpriteName = "sirup";
+    //[SerializeField] string waterSpriteName = "air";                    // nama sprite di TMP Sprite Asset
+    //[SerializeField] string syrupSpriteName = "sirup";
     [SerializeField] float fillSpeed = 1.2f;                            // level naik saat wadah baru muncul (rasio per detik)
     [SerializeField] bool alwaysFull = true;                            // wadah selalu penuh (seperti wadah kerja); hanya warna yang berbeda
     [SerializeField] Vector3 labelEuler = new Vector3(60f, 0f, 0f);   // arah label tetap (derajat, relatif terhadap grid); tidak mengikuti kamera
@@ -28,6 +28,9 @@ public class TrialGridView : MonoBehaviour
         public GameObject root;
         public LiquidVessel vessel;
         public TMP_Text label;
+        public TMP_Text water;
+        public TMP_Text syrup;
+        public TMP_Text total;
         public float fill, target;
         //public bool scaleConfigured; not used!
     }
@@ -68,7 +71,10 @@ public class TrialGridView : MonoBehaviour
 
         GameObject label = Instantiate(labelPrefab, item.root.transform);
         label.transform.localPosition = labelOffset;
-        item.label = label.GetComponentInChildren<TMP_Text>(true);
+        //item.label = label.transform.Find("a").GetComponent<TMP_Text>();
+        item.water = label.transform.Find("WaterTxt").GetComponent<TMP_Text>();
+        item.syrup = label.transform.Find("SyrupTxt").GetComponent<TMP_Text>();
+        item.total = label.transform.Find("TotalTxt").GetComponent<TMP_Text>();
         label.transform.localRotation = Quaternion.Euler(labelEuler);
         return item;
     }
@@ -101,8 +107,14 @@ public class TrialGridView : MonoBehaviour
             it.vessel.Fill = it.fill;
             it.vessel.LiquidColor = style == null ? Color.white : style.ColorForRatio(e.SyrupRatio);
 
-            if (it.label)
-                it.label.text = $"Wadah percobaan {i + 1}\n<sprite name=\"{waterSpriteName}\"> {e.waterSections} : <sprite name=\"{syrupSpriteName}\"> {e.syrupSections}";
+            //if (it.label)
+            //    it.label.text = $"Wadah percobaan {i + 1}\n<sprite name=\"{waterSpriteName}\"> {e.waterSections} : <sprite name=\"{syrupSpriteName}\"> {e.syrupSections}";
+            if (it.water)
+                it.water.text = $"{e.waterSections}";
+            if (it.syrup)
+                it.syrup.text = $"{e.syrupSections}";
+            if (it.total)
+                it.total.text = $"{e.waterSections + e.syrupSections}";
 
             it.root.transform.localPosition = SlotPosition(i, n);
         }

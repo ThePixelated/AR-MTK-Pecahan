@@ -300,10 +300,10 @@ MonoBehaviour:
   message: {fileID: 7867160944960666872}
   icon: {fileID: 1598846504256235292}
   textColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}
-  infoColor: {r: 0.76, g: 0.86, b: 1, a: 1}
-  successColor: {r: 0.72, g: 0.92, b: 0.76, a: 1}
-  warningColor: {r: 1, g: 0.9, b: 0.6, a: 1}
-  errorColor: {r: 0.98, g: 0.74, b: 0.74, a: 1}
+  infoColor: {r: 0.7249021, g: 0.7757851, b: 0.8490566, a: 1}
+  successColor: {r: 0.4009434, g: 1, b: 0.51840556, a: 1}
+  warningColor: {r: 1, g: 0.88235295, b: 0.5176471, a: 1}
+  errorColor: {r: 1, g: 0.33490568, b: 0.33490568, a: 1}
   infoIcon: {fileID: 1614588344, guid: 91ba91ec5c1888a4ab9799332a79fdb9, type: 3}
   successIcon: {fileID: -1151447389, guid: 91ba91ec5c1888a4ab9799332a79fdb9, type: 3}
   warningIcon: {fileID: 150064487, guid: 91ba91ec5c1888a4ab9799332a79fdb9, type: 3}

@@ -48,3 +48,54 @@ MonoBehaviour:
     pions: []
     checkMode: 0
     lockConfig: 0
+  - kind: 5
+    text: Rahmi, Ari dan Sinta mengikuti lomba marathon pada lintasan yang sama. 
+      Pada 10 menit pertama, Rahmi telah menempuh 5/10  bagian lintasan, Ari Telah
+      menempuh 3/4 bagian lintasan, dan Sinta menempuh 3/5 bagian lintasan. Siapakah
+      yang posisinya paling dekat dengan garis finis? Jelsakan alasanmu
+    image: {fileID: 0}
+    presetLength: 1
+    presetPartisi: 5
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 2
+      numerator: 1
+      denominator: 2
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    upperBound:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    pions:
+    - label: Rahmi
+      value:
+        whole: 0
+        numerator: 5
+        denominator: 10
+      partisi: 0
+    - label: Ari
+      value:
+        whole: 0
+        numerator: 3
+        denominator: 4
+      partisi: 0
+    - label: Sinta
+      value:
+        whole: 0
+        numerator: 3
+        denominator: 5
+      partisi: 0
+    checkMode: 0
+    lockConfig: 0

@@ -15,6 +15,54 @@ MonoBehaviour:
   levelTitle: Level 3
   stayUntilCorrect: 1
   questions:
+  - kind: 5
+    text: 'Tentukanlah nilai pecahan yang di tunjukkan pada gambar berikut '
+    image: {fileID: -983519124, guid: 54f97dfcbc2779a4e84b22985e700489, type: 3}
+    presetLength: 2
+    presetPartisi: 4
+    lineAnswer:
+      length: 0
+      partisi: 0
+    alternativeLineAnswers: []
+    target:
+      whole: 0
+      numerator: 4
+      denominator: 6
+    markers: []
+    rule: 0
+    exact:
+      whole: 0
+      numerator: 0
+      denominator: 0
+    lowerBound:
+      whole: 0
+      numerator: 2
+      denominator: 6
+    upperBound:
+      whole: 0
+      numerator: 4
+      denominator: 6
+    pions:
+    - label: A
+      value:
+        whole: 0
+        numerator: 1
+        denominator: 4
+      partisi: 0
+    - label: B
+      value:
+        whole: 0
+        numerator: 3
+        denominator: 4
+      partisi: 0
+    - label: C
+      value:
+        whole: 1
+        numerator: 2
+        denominator: 4
+      partisi: 0
+    checkMode: 0
+    lockConfig: 0
   - kind: 1
     text: 'Manakah yang dekat dengan 1/2. 3/8 atau 7/8? '
     image: {fileID: 0}
@@ -50,7 +98,7 @@ MonoBehaviour:
       semut  berpindah sejauh 5/8 meter kekanan. Gerakan kedua dengan arah yang sama,
       semut bergerak 1/8 meter lebih jauh daripada gerakan pertama. Tentukan posisi
       semut saat ini menggunakan garis bilangan!
-    image: {fileID: -983519124, guid: 54f97dfcbc2779a4e84b22985e700489, type: 3}
+    image: {fileID: 0}
     presetLength: 2
     presetPartisi: 8
     lineAnswer:

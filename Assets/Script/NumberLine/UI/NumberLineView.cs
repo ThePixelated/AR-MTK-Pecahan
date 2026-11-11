@@ -176,6 +176,29 @@ public class NumberLineView : MonoBehaviour
         arcsDirty = true;
     }
 
+    // ---------------- API untuk lapisan pion tambahan (MultiPion) ----------------
+    // Garis ini hanya memberi geometri; pion-pion diatur komponen lain (MultiPionPresenter). Perilaku pion tunggal tidak berubah.
+    public RectTransform Line => mainLine != null ? mainLine : (RectTransform)transform;
+    public bool IsLayoutReady => mainLine != null && LayoutReady;
+
+    // Posisi 0..1 sepanjang garis (pusat tick pertama sampai pusat tick terakhir) menjadi x lokal pada ruang 'space'
+    public float NormalizedToLocalX(float normalized, RectTransform space)
+    {
+        Vector3 world = mainLine.TransformPoint(new Vector3(mainLine.rect.xMin + WholeWidth * 0.5f + normalized * Span, 0f, 0f));
+        return space.InverseTransformPoint(world).x;
+    }
+
+    // Posisi pointer layar menjadi 0..1 sepanjang garis (dibatasi 0..1); false kalau tata letak belum siap
+    public bool TryPointerToNormalized(Vector2 screenPosition, Camera eventCamera, out float normalized)
+    {
+        normalized = 0f;
+        if (mainLine == null || !LayoutReady || Span <= 0f) return false;
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(mainLine, screenPosition, eventCamera, out Vector2 local)) return false;
+
+        normalized = Mathf.Clamp01((local.x - mainLine.rect.xMin - WholeWidth * 0.5f) / Span);
+        return true;
+    }
+
     // ---------------- geometri ----------------
     static float WidthOf(RectTransform rt) => rt == null ? 0f : (rt.sizeDelta.x > 0f ? rt.sizeDelta.x : rt.rect.width);
 

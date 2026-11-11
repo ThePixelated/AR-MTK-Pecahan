@@ -42,6 +42,19 @@ public class LatihanController : MonoBehaviour
     [SerializeField] string checkText = "CEK JAWABAN";
     [SerializeField] string nextText = "LANJUT";
 
+    [Header("Layout baru (MultiPion). Layout Level 1 dan 2 di atas tidak disentuh")]
+    [Tooltip("Nyala: SEMUA kind soal memakai layout baru, bukan Layout Level 1 atau 2. Mati: hanya soal MultiPion yang memakainya.")]
+    [SerializeField] bool overrideToNewLayout;
+    [SerializeField] GameObject newLayoutLeft;                   // LeftSide/NewLayoutLevel
+    [SerializeField] GameObject newLayoutRight;                  // RightSide/Layout Level New
+    [SerializeField] GameObject mainLayoutRight;                 // RightSide/Layout Level Main (layout lama sisi kanan; dimatikan saat layout baru aktif)
+    [SerializeField] GameObject newLineSection;                  // GarisBilanganSection di layout baru
+    [SerializeField] NumberLineView newView;                     // NumberLineView di layout baru
+    [SerializeField] TMP_Text newSoalText;                       // SoalTxt di NewLayoutLevel
+    [SerializeField] GameObject newImageContainer;               // ImageContainer di NewLayoutLevel
+    [SerializeField] Image newSoalImage;                         // gambar di dalam ImageContainer baru
+    [SerializeField] MultiPionPresenter multiPion;               // tombol tokoh, pion di garis, highlight, outline
+
     [Header("Navbar (opsional)")]
     [SerializeField] Button backButton;                          // BackBtn di Navbar permainan
     [SerializeField] TMP_Text soalIndicatorText;                 // SoalIndicatorTxt
@@ -59,6 +72,11 @@ public class LatihanController : MonoBehaviour
     readonly List<(Button button, UnityAction action)> boundButtons = new List<(Button, UnityAction)>();
     NumberLineSoalInput focusedInput;
     bool wired, validated;
+    bool usingNewLayout;
+    readonly HashSet<QuestionKind> overrideWarned = new HashSet<QuestionKind>();
+
+    // View yang sedang dipakai soal aktif: layout baru memakai view-nya sendiri
+    NumberLineView ActiveView => usingNewLayout && newView != null ? newView : view;
 
     LatihanSession CreateSession()
     {
@@ -71,7 +89,7 @@ public class LatihanController : MonoBehaviour
             validated = true;
             for (int l = 0; l < list.Count; l++)
                 for (int q = 0; q < list[l].questions.Count; q++)
-                    foreach (string issue in list[l].questions[q].Validate(options.Line, options.MaxMarkers))
+                    foreach (string issue in list[l].questions[q].Validate(options.Line, options.MaxMarkers, options.MaxPions))
                         Debug.LogWarning($"[{name}] Level {l + 1} soal {q + 1} ({list[l].questions[q].kind}): {issue}", this);
         }
         return new LatihanSession(list, options);
@@ -99,6 +117,7 @@ public class LatihanController : MonoBehaviour
         lineSettings.LengthChosen += OnLengthChosen;
         lineSettings.PartisiChanged += OnPartisiChanged;
         view.PionDragged += OnPionDragged;
+        if (newView) newView.PionDragged += OnPionDragged;
         soalGrid.CellTapped += OnCellTapped;
         numpad.Overflowed += OnOverflow;
         numpad.Entered += OnNumpadEntered;
@@ -129,6 +148,8 @@ public class LatihanController : MonoBehaviour
             lineSettings.PartisiChanged -= OnPartisiChanged;
         }
         if (view) view.PionDragged -= OnPionDragged;
+        if (newView) newView.PionDragged -= OnPionDragged;
+        if (multiPion) multiPion.Clear();
         if (soalGrid) soalGrid.CellTapped -= OnCellTapped;
         if (numpad)
         {
@@ -194,6 +215,7 @@ public class LatihanController : MonoBehaviour
     void ExitToPicker()
     {
         numpad.Close();
+        if (multiPion) multiPion.Clear();
         Session.ExitLevel();
         RefreshLevelButtons();
         onReturnToPicker?.Invoke();
@@ -212,6 +234,16 @@ public class LatihanController : MonoBehaviour
         NumberLineQuestion q = Session.Current;
         if (q == null) return;
         QuestionLayout layout = Session.Layout;
+
+        // layout baru (soal MultiPion, atau Override Layout menyala): jalur sendiri, layout lama tidak disentuh
+        usingNewLayout = overrideToNewLayout || layout.multiPion;
+        SetLayoutRoots(usingNewLayout);
+        if (usingNewLayout)
+        {
+            ShowQuestionNewLayout(q, layout);
+            return;
+        }
+        if (multiPion) multiPion.Clear();
 
         numpad.Close();
         if (layoutLevel1) layoutLevel1.SetActive(!layout.NeedsNumpad);
@@ -237,7 +269,7 @@ public class LatihanController : MonoBehaviour
         if (soalText) soalText.text = q.FormattedText();
         bool hasImage = q.image != null;
         if (imageContainer) imageContainer.SetActive(hasImage);
-        if (soalImage && hasImage) { soalImage.sprite = q.image; soalImage.SetNativeSize(); }
+        if (soalImage && hasImage) { soalImage.SetNativeSize(); soalImage.sprite = q.image; }
 
         UpdateNavbar();
         UpdateCheckButton();
@@ -246,23 +278,93 @@ public class LatihanController : MonoBehaviour
 
     void SetupMarkers(NumberLineQuestion q)
     {
-        if (q.kind != QuestionKind.MultiPosition) { view.ClearMarkers(); return; }
+        if (q.kind != QuestionKind.MultiPosition) { ActiveView.ClearMarkers(); return; }
 
         int n = Session.MarkerTicks.Length;
         var labels = new string[n];
         for (int i = 0; i < n; i++) labels[i] = NumberLineLabels.Letter(i);
-        view.SetMarkers(Session.MarkerTicks, labels);
+        ActiveView.SetMarkers(Session.MarkerTicks, labels);
     }
 
     // Tampilan mengikuti session saat garis atau pion berubah
     void OnSessionChanged()
     {
         if (Session.Current == null) return;
-        view.SetConfig(Session.Config);
-        view.SetPionTick(Session.PionTick);
+        ActiveView.SetConfig(Session.Config);
+        ActiveView.SetPionTick(Session.PionTick);
         lineSettings.Show(Session.Config);
         UpdateNavbar();
         UpdateCheckButton();
+    }
+
+    // ---------------- layout baru ----------------
+    void SetLayoutRoots(bool useNew)
+    {
+        if (newLayoutLeft) newLayoutLeft.SetActive(useNew);
+        if (newLayoutRight) newLayoutRight.SetActive(useNew);
+        if (mainLayoutRight) mainLayoutRight.SetActive(!useNew);
+    }
+
+    // Teks, gambar, garis, dan (untuk MultiPion) tombol tokoh dan pion memakai referensi layout baru
+    void ShowQuestionNewLayout(NumberLineQuestion q, QuestionLayout layout)
+    {
+        if (newView == null)
+        {
+            Debug.LogError($"[{name}] LatihanController: 'New View' harus diisi untuk layout baru.", this);
+            return;
+        }
+        if (layout.multiPion && multiPion == null)
+        {
+            Debug.LogError($"[{name}] LatihanController: 'Multi Pion' harus diisi untuk soal MultiPion.", this);
+            return;
+        }
+
+        numpad.Close();
+        if (layoutLevel1) layoutLevel1.SetActive(false);
+        if (layoutLevel2) layoutLevel2.SetActive(false);
+        if (lineSection) lineSection.SetActive(false);
+        if (newLineSection) newLineSection.SetActive(layout.showLine);
+
+        newView.SetConfig(Session.Config);
+        newView.DragEnabled = layout.pionUnlocked;
+        newView.SetPionVisible(layout.showPion);
+        newView.SetPionTick(Session.PionTick, true);
+        SetupMarkers(q);
+
+        if (layout.multiPion) multiPion.Show(Session.Board);
+        else if (multiPion) multiPion.Clear();
+
+        if (layout.panelCount > 0) soalGrid.Build(Session.Soal);
+        else soalGrid.Clear();
+
+        if (newSoalText) newSoalText.text = q.FormattedText();
+        bool hasImage = q.image != null;
+        if (newImageContainer) newImageContainer.SetActive(hasImage);
+        if (newSoalImage && hasImage) { newSoalImage.SetNativeSize(); newSoalImage.sprite = q.image; }
+
+        WarnOverrideLimits(q, layout);
+        UpdateNavbar();
+        UpdateCheckButton();
+        UpdateTimer();
+    }
+
+    // Override Layout memakai layout baru untuk kind lama: bagian yang tidak ada di layout baru diberi tahu sekali per kind
+    void WarnOverrideLimits(NumberLineQuestion q, QuestionLayout layout)
+    {
+        if (!overrideToNewLayout || layout.multiPion || !overrideWarned.Add(q.kind)) return;
+
+        var missing = new List<string>();
+        if (layout.panelCount > 0) missing.Add("panel Soal dan numpad");
+        if (layout.lineUnlocked) missing.Add("pengaturan garis");
+        if (layout.showPion && layout.pionUnlocked) missing.Add("pemilih hewan");
+        if (missing.Count > 0)
+            Debug.LogWarning($"[{name}] Override Layout: soal {q.kind} membutuhkan {string.Join(", ", missing)}, yang tidak ada di layout baru.", this);
+    }
+
+    void ShowIndicators(NumberLineIndicator[] indicators)
+    {
+        if (Session.Board != null && multiPion != null) multiPion.ShowIndicators(indicators);
+        else soalGrid.ShowIndicators(indicators);
     }
 
     // ---------------- atur garis dan pion ----------------
@@ -292,7 +394,7 @@ public class LatihanController : MonoBehaviour
             Feedback.Show(LatihanMessages.LineOutOfRange(options.Line), FeedbackKind.Warning);
 
         lineSettings.Show(Session.Config);
-        view.SetPionTick(Session.PionTick, true);     // garis berubah: pion kembali ke 0 tanpa meluncur
+        ActiveView.SetPionTick(Session.PionTick, true);     // garis berubah: pion kembali ke 0 tanpa meluncur
     }
 
     void OnPionDragged(int tick) => Session.SetPionTick(tick);
@@ -341,17 +443,18 @@ public class LatihanController : MonoBehaviour
         switch (r.outcome)
         {
             case LatihanOutcome.Correct:
-                soalGrid.ShowIndicators(r.indicators);
+                ShowIndicators(r.indicators);
                 Feedback.Show(LatihanMessages.Correct, FeedbackKind.Success);
                 break;
 
             case LatihanOutcome.Wrong:
-                soalGrid.ShowIndicators(r.indicators);
+                ShowIndicators(r.indicators);
                 Feedback.Show(stay ? LatihanMessages.WrongStay : LatihanMessages.WrongContinue, FeedbackKind.Warning);
                 break;
 
             case LatihanOutcome.Incomplete:
-                Feedback.Show(Session.Layout.panelCount > 1 ? LatihanMessages.IncompleteMulti : LatihanMessages.IncompleteSingle, FeedbackKind.Info);
+                Feedback.Show(Session.Board != null ? MultiPionTexts.Incomplete
+                    : (Session.Layout.panelCount > 1 ? LatihanMessages.IncompleteMulti : LatihanMessages.IncompleteSingle), FeedbackKind.Info);
                 break;
         }
 
