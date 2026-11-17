@@ -6,4 +6,5 @@ public class SessionOptions
 {
     public bool MoveFromKotak = true;     // true: balok dipindahkan dari Kotak ke area (bisa dikembalikan); false: disalin
     public bool CheckWholes = false;      // true: bilangan bulat di area atas juga dicek, selain sisa
+    public bool LockAfterCombine = false; // true: setelah tombol Jumlahkan, Kotak A dan B dan balok area atas terkunci sampai atur ulang
 }

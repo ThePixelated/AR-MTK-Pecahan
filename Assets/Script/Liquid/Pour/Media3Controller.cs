@@ -25,6 +25,13 @@ public class Media3Controller : MonoBehaviour
     [SerializeField] TMP_Text trialCounter;                  // "2/4"
     [SerializeField] TrialListView trialList;                // daftar percobaan (opsional)
 
+    [Header("Isi ulang gelas (tombol Isi dan counter masing-masing)")]
+    [SerializeField] TMP_Text waterCounterText;              // jumlah tuangan air (di dekat tombol Isi air)
+    [SerializeField] TMP_Text syrupCounterText;              // jumlah tuangan sirup (di dekat tombol Isi sirup)
+    [SerializeField] TMP_Text capacityText;                  // "11/20" tuangan terpakai (opsional)
+    [SerializeField] UnityEngine.UI.Button waterRefillButton;    // opsional: nonaktif selama gelas masih penuh
+    [SerializeField] UnityEngine.UI.Button syrupRefillButton;
+
     [Header("Mode perbandingan")]
     [SerializeField] TrialGridView trialGrid;
     [SerializeField] GameObject[] entryModeObjects;          // hanya tampil di mode entri (gelas dan wadah, panel informasi, tombol Input dan Gabungkan)
@@ -53,7 +60,11 @@ public class Media3Controller : MonoBehaviour
         binder.Bind(Session);
         Session.Changed += RefreshInfo;
         if (trialList) trialList.Bind(Session);
-        if (trialGrid) trialGrid.Bind(Session);
+        if (trialGrid)
+        {
+            trialGrid.SetColors(binder.Colors);      // kontras warna sama dengan wadah kerja
+            trialGrid.Bind(Session);
+        }
 
         RefreshInfo();
         compareMode = false;       // selalu mulai di mode entri saat halaman dibuka
@@ -89,9 +100,10 @@ public class Media3Controller : MonoBehaviour
             Feedback.Show(Media3Messages.PourBusy, FeedbackKind.Info);
             return;
         }
-        if (Session.CheckMerge() != PourError.None)
+        PourError mergeError = Session.CheckMerge();
+        if (mergeError != PourError.None)
         {
-            Feedback.Show(Media3Messages.MergeBlocked(limits), FeedbackKind.Warning);
+            Feedback.Show(Media3Messages.ForMerge(mergeError, limits), FeedbackKind.Warning);
             return;
         }
 
@@ -107,6 +119,30 @@ public class Media3Controller : MonoBehaviour
             new PourJob { source = actorSyrup, target = actorWadah, commit = () => Session.TryPour(Session.Syrup, Session.W) }
         };
         pourController.StartJobs(jobs, sequentialMerge);
+    }
+
+    // onClick tombol Isi di dekat gelas air
+    public void OnRefillWaterPressed() => Refill(LiquidKind.Water);
+
+    // onClick tombol Isi di dekat gelas sirup
+    public void OnRefillSyrupPressed() => Refill(LiquidKind.Syrup);
+
+    // Gelas yang sudah kosong diisi lagi (animasi naik oleh binder)
+    void Refill(LiquidKind kind)
+    {
+        if (compareMode)
+        {
+            Feedback.Show(Media3Messages.InputInCompareMode, FeedbackKind.Info);
+            return;
+        }
+        if (pourController != null && pourController.IsBusy)
+        {
+            Feedback.Show(Media3Messages.PourBusy, FeedbackKind.Info);
+            return;
+        }
+
+        if (Session.TryRefill(kind) == Media3RefillResult.AlreadyFull)
+            Feedback.Show(Media3Messages.CupStillFull(kind), FeedbackKind.Info);
     }
 
     // onClick tombol Input
@@ -199,10 +235,16 @@ public class Media3Controller : MonoBehaviour
         if (session == null) return;
 
         int water = session.WaterCount, syrup = session.SyrupCount;
-        if (infoView) infoView.Show(water, syrup);
+        if (infoView) infoView.Show(water, syrup, limits.MaxTotalPours);
         if (infoWater) infoWater.text = water.ToString();
         if (infoSyrup) infoSyrup.text = syrup.ToString();
         if (infoTotal) infoTotal.text = (water + syrup).ToString();
         if (trialCounter) trialCounter.text = $"{session.Entries.Count}/{limits.MaxTrials}";
+
+        if (waterCounterText) waterCounterText.text = water.ToString();
+        if (syrupCounterText) syrupCounterText.text = syrup.ToString();
+        if (capacityText) capacityText.text = $"{water + syrup}/{limits.MaxTotalPours}";
+        if (waterRefillButton) waterRefillButton.interactable = !session.WaterCupFull;
+        if (syrupRefillButton) syrupRefillButton.interactable = !session.SyrupCupFull;
     }
 }

@@ -45,7 +45,7 @@ public static class Audio
         if (s != null) s.StopAll(owner, fade);
     }
 
-    public static void PlayMusic(AudioId id)
+    public static void PlayMusic(AudioCue id)
     {
         AudioService s = Service;
         if (s != null) s.PlayMusic(id);

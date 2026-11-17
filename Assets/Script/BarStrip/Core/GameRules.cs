@@ -12,7 +12,8 @@ public enum RejectReason
     LowerHanyaPecahan,   // area bawah (sisa) tidak menerima bilangan bulat
     LowerSatuanBeda,     // area bawah (sisa) hanya satu jenis pecahan
     BlokSudahDiArea,     // mode salin: row ini sudah ada di area atas
-    AreaTidakTersedia    // area dua bagian hanya untuk Add, atau indeks row tidak ada
+    AreaTidakTersedia,   // area dua bagian hanya untuk Add, atau indeks row tidak ada
+    AreaTerkunci         // sudah dijumlahkan dan Lock After Combine menyala: atur ulang dulu untuk mengubah
 }
 
 public enum CheckVerdict { Benar, Kurang, Kelebihan, NilaiPasSatuanBeda, UtuhBelumSesuai }

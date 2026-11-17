@@ -1,27 +1,15 @@
-using System;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 
 // Menghubungkan Media1Session (data) ke LiquidVessel (tampilan): level isi, warna per tingkat encer, garis penyebut,
-// label dunia statis, dan level botol yang sedang menuang.
+// dan level botol yang sedang menuang. Informasi jumlah dituang ada di panel Informasi Larutan (controller), bukan label gelas.
 // Bagian "Uji" untuk mencoba tanpa UI; di halaman, controller Media 1 yang membuat dan meng-Bind session.
 public class Media1VisualBinder : LiquidBinderBase
 {
-    [Serializable]
-    public class VesselLabel
-    {
-        public LiquidVessel vessel;          // gelas yang dilabeli
-        public GameObject root;              // induk label: dinyalakan hanya kalau gelasnya ada; kosong = selalu tampil
-        public TMP_Text currentVolumeTxt;    // pembilang: bagian yang sedang terisi
-        public TMP_Text denominatorTxt;      // penyebut: partisi
-    }
-
     [SerializeField] LiquidStyle style;
     [SerializeField] LiquidVessel vesselA, vesselB, vesselW;
-    [SerializeField] LiquidVessel[] finalCupVessels;      // disiapkan di scene (nonaktif); diaktifkan sesuai jumlah gelas akhir
+    [SerializeField] LiquidVessel[] finalCupVessels;      // disiapkan di scene (nonaktif), sebanyak Max Predict Cups; diaktifkan satu per satu oleh tombol Tambah Gelas
     [SerializeField] float fillSpeed = 1f;                // level mengikuti data (rasio per detik)
-    [SerializeField] VesselLabel[] labels;                // label dunia statis (tidak ikut gelas, tidak menghadap kamera)
 
     [Header("Uji (sementara)")]
     [SerializeField] bool createTestSession = false;
@@ -118,6 +106,9 @@ public class Media1VisualBinder : LiquidBinderBase
             else if (finalCupVessels[i]) shown.Remove(finalCupVessels[i]);
         }
 
+        if (session.FinalCups.Count > finalCupVessels.Length)
+            Debug.LogWarning($"[{name}] Media1VisualBinder: {session.FinalCups.Count} gelas hasil tapi hanya {finalCupVessels.Length} objek gelas disiapkan di 'Final Cup Vessels'.", this);
+
         int levels = session.Limits.DilutionLevels;
         int p = session.Denominator > 0 ? session.Denominator : 1;
         for (int i = 0; i < containers.Count; i++)
@@ -127,29 +118,11 @@ public class Media1VisualBinder : LiquidBinderBase
             LiquidContainer c = containers[i];
 
             bool isW = c == session.W;
-            v.ConfigureScale(isW ? (int)Mathf.Max(1, c.CapacitySections) : p, isW ? p : 1);   // gelas: p bagian tiap 1; wadah: 2p bagian tiap p
+            v.ConfigureScale(isW ? (int)Mathf.Max(1, c.CapacitySections) : p, 1);   // gelas: p garis; wadah: 2p garis (partisi 4 = 8 bagian), semuanya digambar
             if (style != null && !c.IsEmpty)    // wadah kosong mempertahankan warna terakhir sampai levelnya habis
                 v.LiquidColor = style.ColorFor(LiquidColorLevel.Level(c.Content, levels), levels);
         }
 
-        RefreshLabels(p);
-    }
-
-    // Label statis: pembilang = bagian terisi, penyebut = partisi
-    void RefreshLabels(int p)
-    {
-        if (labels == null) return;
-        foreach (VesselLabel label in labels)
-        {
-            if (label == null || label.vessel == null) continue;
-
-            bool exists = TryGetContainer(label.vessel, out LiquidContainer c);
-            if (label.root && label.root.activeSelf != exists) label.root.SetActive(exists);
-            if (!exists) continue;
-
-            if (label.currentVolumeTxt) label.currentVolumeTxt.text = c.VolumeSections.ToString();
-            if (label.denominatorTxt) label.denominatorTxt.text = session.Denominator > 0 ? p.ToString() : "-";
-        }
     }
 
     void Update()

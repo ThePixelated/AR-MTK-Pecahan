@@ -4,8 +4,8 @@ using System;
 [Serializable]
 public class Media3Limits
 {
-    public int MaxPerCup = 10;     // air dan sirup masing-masing maksimal sekian cangkir per percobaan
-    public int MaxTrials = 4;      // jumlah entri maksimum
+    public int MaxTotalPours = 20;   // total tuangan (air + sirup, urutan bebas) ke wadah per percobaan; kapasitas wadah = sekian cangkir
+    public int MaxTrials = 4;        // jumlah entri maksimum
 }
 
 // Satu percobaan: isi wadah saat Input ditekan, dalam cangkir
@@ -29,6 +29,9 @@ public readonly struct Media3Entry
     // Bagian sirup dari total sebagai float; dipakai untuk warna
     public float SyrupRatio => TotalSections == 0 ? 0f : (float)syrupSections / TotalSections;
 
+    // Tinggi isi wadah relatif terhadap kapasitas (mis. 11 dari 20 cangkir = 0.55)
+    public float LevelRatio(Media3Limits limits) => limits.MaxTotalPours <= 0 ? 0f : (float)TotalSections / limits.MaxTotalPours;
+
     // Angka sama persis (dipakai untuk menolak entri kembar)
     public bool SamePair(Media3Entry other) =>
         syrupSections == other.syrupSections && waterSections == other.waterSections;
@@ -44,4 +47,10 @@ public enum Media3InputResult
     TrialsFull,       // sudah MaxTrials entri
     NothingPoured,    // wadah masih kosong
     DuplicateEntry    // angka sama persis dengan entri yang sudah ada
+}
+
+public enum Media3RefillResult
+{
+    Refilled,
+    AlreadyFull       // gelas masih penuh, tidak perlu diisi
 }

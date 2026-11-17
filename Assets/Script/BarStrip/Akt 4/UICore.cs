@@ -54,8 +54,49 @@ public static class Messages
         RejectReason.LowerHanyaPecahan => "Balok sisa harus pecahan, bukan bilangan bulat.",
         RejectReason.LowerSatuanBeda => "Balok sisa harus satu jenis pecahan.",
         RejectReason.BlokSudahDiArea => "Balok ini sudah ada di area.",
+        RejectReason.AreaTerkunci => "Sudah dijumlahkan. Atur ulang dulu kalau mau mengubah.",
         _ => ""
     };
+
+    public static string For(CombineResult r) => r switch
+    {
+        CombineResult.SoalBelumDibentuk => "Tekan tombol + atau − dulu ya.",
+        CombineResult.PerluKeduaKotak => "Tarik pecahan dari Kotak A dan Kotak B ke area atas dulu.",
+        CombineResult.SudahDijumlahkan => "Balok sudah dijumlahkan.",
+        _ => ""
+    };
+
+    public static string Word(Operation op) => op == Operation.Add ? "penjumlahan" : "pengurangan";
+
+    // Hasil Cek Hasil dua tahap. answerText = jawaban siswa di kotak "?" (mis. "1 3/4"); dipakai di pesan jawaban salah.
+    public static string For(FullCheckResult r, Operation op, string answerText)
+    {
+        switch (r.outcome)
+        {
+            case FullCheckOutcome.SoalBelumDibentuk: return "Tekan tombol + atau − dulu ya.";
+            case FullCheckOutcome.BelumDijumlahkan: return "Tekan Jumlahkan dulu untuk menggabungkan balok di area atas.";
+            case FullCheckOutcome.KeduanyaKosong: return "Susun balok di area bawah dan jawab soal terlebih dahulu.";
+            case FullCheckOutcome.BalokKosong: return "Susun balok pecahan di area bawah terlebih dahulu.";
+            case FullCheckOutcome.JawabanKosong: return "Jawab soal di kotak ? terlebih dahulu.";
+            case FullCheckOutcome.Benar: return "Benar! Balok dan jawabanmu tepat.";
+            case FullCheckOutcome.BalokSalah:
+                string detail = r.blockVerdict == CheckVerdict.Kurang ? " Masih kurang, coba tambah balok."
+                              : r.blockVerdict == CheckVerdict.Kelebihan ? " Kelebihan, coba kurangi balok." : "";
+                return "Jawabanmu benar, tapi balok pecahan yang kamu susun belum tepat." + detail;
+            case FullCheckOutcome.JawabanSalah:
+                return $"Balok pecahanmu sudah tepat, tapi hasil {Word(op)} yang kamu masukkan ({answerText}) salah.";
+            case FullCheckOutcome.KeduanyaSalah:
+                return $"Balok pecahan dan hasil {Word(op)} yang kamu masukkan ({answerText}) belum tepat. Coba cek lagi susunan balok dan hitungannya.";
+            default: return "";
+        }
+    }
+
+    public static FeedbackKind KindOf(FullCheckOutcome o) =>
+        o == FullCheckOutcome.Benar ? FeedbackKind.Success
+        : o == FullCheckOutcome.BalokSalah || o == FullCheckOutcome.JawabanSalah || o == FullCheckOutcome.KeduanyaSalah ? FeedbackKind.Warning
+        : FeedbackKind.Info;
+
+    public const string AnswerIncomplete = "Lengkapi pecahan jawabanmu dulu: pembilang dan penyebut harus terisi.";
 
     public static string For(CheckVerdict v) => v switch
     {

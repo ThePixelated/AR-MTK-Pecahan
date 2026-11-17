@@ -15,7 +15,7 @@ MonoBehaviour:
   levelTitle: Level 3
   stayUntilCorrect: 1
   questions:
-  - kind: 5
+  - kind: 3
     text: 'Tentukanlah nilai pecahan yang di tunjukkan pada gambar berikut '
     image: {fileID: -983519124, guid: 54f97dfcbc2779a4e84b22985e700489, type: 3}
     presetLength: 2
@@ -28,7 +28,16 @@ MonoBehaviour:
       whole: 0
       numerator: 4
       denominator: 6
-    markers: []
+    markers:
+    - whole: 0
+      numerator: 1
+      denominator: 4
+    - whole: 0
+      numerator: 3
+      denominator: 4
+    - whole: 0
+      numerator: 2
+      denominator: 4
     rule: 0
     exact:
       whole: 0

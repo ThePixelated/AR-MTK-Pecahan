@@ -23,6 +23,9 @@ public static class AreaComposer
         return op == Operation.Add ? ComposeAdd(blocks) : ComposeSubtract(blocks);
     }
 
+    // Sebelum tombol Jumlahkan: satu balok untuk tiap row yang ditarik dari Kotak, tanpa digabung (Add dan Subtract sama)
+    public static List<ComposedBlock> Separate(IReadOnlyList<AreaBlock> blocks) => Raw(blocks);
+
     // ---------- Add ----------
     static List<ComposedBlock> ComposeAdd(IReadOnlyList<AreaBlock> blocks)
     {

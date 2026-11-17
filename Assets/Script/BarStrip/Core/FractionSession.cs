@@ -15,23 +15,37 @@ public class FractionSession
     public AreaContents Upper { get; } = new AreaContents();
     public KotakContents Dpz { get; } = new KotakContents();
     public KotakContents Lower => Dpz;
-    
+
     // Balok area atas yang digambar (hasil AreaComposer); selalu mutakhir saat Upper.Changed diterima pelihat
     public IReadOnlyList<ComposedBlock> Composed => composed;
     readonly List<ComposedBlock> composed = new List<ComposedBlock>();
-    
+
 
     public Phase CurrentPhase { get; private set; } = Phase.Menyusun;
     public Problem Current { get; private set; }            // valid kalau CurrentPhase != Menyusun
     public CheckVerdict? LastVerdict { get; private set; }
 
     public event Action StateChanged;
+    public event Action UpperViewChanged;      // balok area atas perlu digambar ulang: isi area berubah, atau tombol Jumlahkan ditekan
+
+    // Balok area atas digabung (hasil tombol Jumlahkan). Kembali false kalau isi area berubah atau soal diatur ulang.
+    public bool Combined { get; private set; }
+
+    // Setelah dijumlahkan dan Lock After Combine menyala: Kotak A, Kotak B, dan balok area atas tidak bisa diubah sampai atur ulang
+    public bool IsCombineLocked => Options.LockAfterCombine && Combined;
 
     // true = ubah Kotak sekarang bakal menghapus area (UI bisa munculin konfirmasi dulu)
     public bool KotakEditClearsDpz => CurrentPhase != Phase.Menyusun;
 
     // Mode pindah: selama balok sebuah Kotak ada di area, Kotak itu tidak boleh diubah
-    public bool IsKotakLocked(bool isA) => Options.MoveFromKotak && Upper.CountFrom(isA) > 0;
+    public bool IsKotakLocked(bool isA) => IsCombineLocked || (Options.MoveFromKotak && Upper.CountFrom(isA) > 0);
+
+    // Alasan Kotak terkunci (untuk pesan): terkunci karena sudah dijumlahkan, atau karena balok Kotak ini masih di area
+    public RejectReason KotakLockReason(bool isA)
+    {
+        if (IsCombineLocked) return RejectReason.AreaTerkunci;
+        return Options.MoveFromKotak && Upper.CountFrom(isA) > 0 ? RejectReason.KotakTerkunci : RejectReason.None;
+    }
 
     int busy;      // > 0 = perubahan sedang dilakukan sesi sendiri, jangan dianggap edit pengguna
 
@@ -39,7 +53,7 @@ public class FractionSession
     {
         Op = op;
         Options = options ?? new SessionOptions();
-        Upper.Changed += RecomputeComposed;
+        Upper.Changed += OnUpperDataChanged;
         A.Changed += OnKotakChanged;
         B.Changed += OnKotakChanged;
         Dpz.Changed += OnDpzChanged;
@@ -53,12 +67,43 @@ public class FractionSession
     void RecomputeComposed()
     {
         composed.Clear();
-        composed.AddRange(AreaComposer.Compose(Op, Upper.Blocks));
+        composed.AddRange(Combined ? AreaComposer.Compose(Op, Upper.Blocks) : AreaComposer.Separate(Upper.Blocks));
+    }
+
+    // Isi area atas berubah: gabungan lama tidak berlaku lagi, balok tampil terpisah sampai Jumlahkan ditekan lagi
+    void OnUpperDataChanged()
+    {
+        Combined = false;
+        RecomputeComposed();
+        UpperViewChanged?.Invoke();
+    }
+
+    // ---- tombol Jumlahkan ----
+    public CombineResult PreviewCombine()
+    {
+        if (CurrentPhase == Phase.Menyusun) return CombineResult.SoalBelumDibentuk;
+        if (Combined) return CombineResult.SudahDijumlahkan;
+        if (Upper.CountFrom(true) == 0 || Upper.CountFrom(false) == 0) return CombineResult.PerluKeduaKotak;
+        return CombineResult.Berhasil;
+    }
+
+    // Menggabungkan balok area atas: satuan pecahan disamakan, carry terbentuk, bilangan bulat dipisah
+    public CombineResult CombineUpper()
+    {
+        CombineResult r = PreviewCombine();
+        if (r != CombineResult.Berhasil) return r;
+
+        Combined = true;
+        RecomputeComposed();
+        UpperViewChanged?.Invoke();
+        StateChanged?.Invoke();
+        return CombineResult.Berhasil;
     }
 
     // Tap balok gabungan: semua row yang membentuknya (dan balok lain yang berbagi sumber dengannya) kembali ke Kotak asalnya
     public bool ReturnComposed(int composedIndex)
     {
+        if (IsCombineLocked) return false;
         if (composedIndex < 0 || composedIndex >= composed.Count) return false;
 
         var set = new HashSet<int>(composed[composedIndex].sources);
@@ -86,7 +131,8 @@ public class FractionSession
     // Cek aturan tanpa mengubah apa pun
     public RejectReason PreviewDropToKotak(bool intoA, Fraction piece)
     {
-        if (IsKotakLocked(intoA)) return RejectReason.KotakTerkunci;
+        RejectReason lockReason = KotakLockReason(intoA);
+        if (lockReason != RejectReason.None) return lockReason;
         return GameRules.CheckKotakDrop(Op, A, B, intoA, piece);
     }
 
@@ -138,6 +184,7 @@ public class FractionSession
 
         Current = p;
         LastVerdict = null;
+        Combined = false;
         Dpz.Clear();
         SetPhase(Phase.Merakit);
         return ProblemError.None;
@@ -149,6 +196,7 @@ public class FractionSession
         // NOT USED - if (Op != Operation.Add) return RejectReason.AreaTidakTersedia;
 
         if (CurrentPhase == Phase.Menyusun) return RejectReason.SoalBelumDibentuk;
+        if (IsCombineLocked) return RejectReason.AreaTerkunci;
 
         KotakContents k = Side(fromA);
         if (rowIndex < 0 || rowIndex >= k.Count) return RejectReason.AreaTidakTersedia;
@@ -184,6 +232,7 @@ public class FractionSession
     // Kembalikan satu balok area atas ke Kotak asalnya (mode salin: salinan dihapus)
     public bool ReturnToKotak(int areaIndex)
     {
+        if (IsCombineLocked) return false;
         if (areaIndex < 0 || areaIndex >= Upper.Count) return false;
         ReturnBlock(areaIndex);
         AfterAreaEdit();
@@ -192,7 +241,7 @@ public class FractionSession
 
     public void ReturnAllToKotak()
     {
-        if (Upper.IsEmpty) return;
+        if (IsCombineLocked || Upper.IsEmpty) return;
         ReturnAll();
         AfterAreaEdit();
     }
@@ -256,7 +305,40 @@ public class FractionSession
     public int MergeDpzBlocks(int source, int target) => Dpz.TransferUnits(source, target);
     public void ClearDpz() => Dpz.Clear();
 
-    // ---- Cek Hasil ----
+    // ---- Cek Hasil dua tahap: balok area bawah dan jawaban di kotak "?" ----
+    // Bagian pecahan hasil (di bawah 1)
+    Fraction ResultRemainder => Current.result - Fraction.Whole(Current.result.WholePart);
+
+    // answer = nilai yang diisi siswa di kotak "?" (null = belum diisi). Dinilai menurut nilai: 7/4 dan 1 3/4 sama.
+    // Urutan penolakan: soal belum dibentuk, belum dijumlahkan, lalu yang kosong. Balok dan jawaban dinilai terpisah.
+    public FullCheckResult CheckFull(Fraction? answer)
+    {
+        if (CurrentPhase == Phase.Menyusun) return new FullCheckResult(FullCheckOutcome.SoalBelumDibentuk);
+        if (!Combined) return new FullCheckResult(FullCheckOutcome.BelumDijumlahkan);
+
+        // hasil bilangan bulat: sisa pecahannya 0, jadi area bawah yang kosong justru benar
+        bool blocksEmpty = Dpz.IsEmpty && ResultRemainder.Sign != 0;
+        bool answered = answer.HasValue;
+
+        if (blocksEmpty && !answered) return new FullCheckResult(FullCheckOutcome.KeduanyaKosong);
+        if (blocksEmpty) return new FullCheckResult(FullCheckOutcome.BalokKosong);
+        if (!answered) return new FullCheckResult(FullCheckOutcome.JawabanKosong);
+
+        CheckVerdict verdict = GameRules.CheckAreaResult(Current, Upper, Dpz, Options.CheckWholes);
+        bool blocksOk = verdict == CheckVerdict.Benar;
+        bool answerOk = answer.Value.ValueEquals(Current.result);
+
+        LastVerdict = verdict;
+        SetPhase(Phase.Dicek);
+
+        FullCheckOutcome outcome = blocksOk && answerOk ? FullCheckOutcome.Benar
+                                 : blocksOk ? FullCheckOutcome.JawabanSalah
+                                 : answerOk ? FullCheckOutcome.BalokSalah
+                                 : FullCheckOutcome.KeduanyaSalah;
+        return new FullCheckResult(outcome, verdict);
+    }
+
+    // ---- Cek Hasil (hanya balok; dipertahankan untuk tes dan pemanggil lama) ----
     public CheckVerdict? Check()
     {
         if (CurrentPhase == Phase.Menyusun) return null;
@@ -277,6 +359,13 @@ public class FractionSession
             Dpz.Clear();
         }
         finally { busy--; }
+
+        if (Combined)
+        {
+            Combined = false;
+            RecomputeComposed();
+            UpperViewChanged?.Invoke();
+        }
 
         if (CurrentPhase != Phase.Menyusun)
         {

@@ -9,35 +9,46 @@ public class TrialGridView : MonoBehaviour
     [SerializeField] LiquidVessel vesselPrefab;       // salinan wadah TANPA VesselActor
     [SerializeField] GameObject labelPrefab;          // world canvas berisi satu TMP_Text
     [SerializeField] LiquidStyle style;
+    [SerializeField, Range(0.1f, 1f)] float maxFill = 1f;                // tinggi isi saat wadah terisi penuh (MaxTotalPours tuangan)
 
     [Header("Tata letak (ruang lokal objek ini, bidang XZ)")]
+    [SerializeField] bool singleRow = true;                             // semua wadah sebaris (berjejer) supaya level dan warnanya mudah dibandingkan; mati = pakai Columns
     [SerializeField, Min(1)] int columns = 2;
     [SerializeField] Vector2 spacing = new Vector2(0.12f, 0.16f);      // jarak antar kolom (x) dan antar baris (z), meter
     [SerializeField] float itemScale = 1f;                              // skala satu item (wadah dan label)
     [SerializeField] Vector3 labelOffset = new Vector3(0f, 0.001f, -0.07f);   // posisi label relatif wadah (depan = -Z)
+    [SerializeField] Vector3 labelEuler = new Vector3(60f, 0f, 0f);           // arah label tetap (derajat, relatif terhadap grid); tidak mengikuti kamera
 
     [Header("Label dan animasi")]
-    //[SerializeField] string waterSpriteName = "air";                    // nama sprite di TMP Sprite Asset
-    //[SerializeField] string syrupSpriteName = "sirup";
+    [SerializeField] string waterSpriteName = "air";                    // nama sprite di TMP Sprite Asset
+    [SerializeField] string syrupSpriteName = "sirup";
     [SerializeField] float fillSpeed = 1.2f;                            // level naik saat wadah baru muncul (rasio per detik)
-    [SerializeField] bool alwaysFull = true;                            // wadah selalu penuh (seperti wadah kerja); hanya warna yang berbeda
-    [SerializeField] Vector3 labelEuler = new Vector3(60f, 0f, 0f);   // arah label tetap (derajat, relatif terhadap grid); tidak mengikuti kamera
 
     class Item
     {
         public GameObject root;
         public LiquidVessel vessel;
         public TMP_Text label;
-        public TMP_Text water;
+        public TMP_Text water;      // teks per larutan di label: WaterTxt, SyrupTxt, TotalTxt
         public TMP_Text syrup;
         public TMP_Text total;
         public float fill, target;
-        //public bool scaleConfigured; not used!
     }
 
     readonly List<Item> items = new List<Item>();
     Media3Session session;
+    Media3ColorSettings colors;
     bool dirty = true;
+
+    // Pengaturan kontras yang sama dengan wadah kerja (dari Media3VisualBinder); panggil sebelum Bind
+    public void SetColors(Media3ColorSettings settings)
+    {
+        colors = settings;
+        if (session != null) Rebuild();
+    }
+
+    Color ColorOf(Media3Entry e) =>
+        colors != null ? colors.Evaluate(style, e.SyrupRatio) : (style == null ? Color.white : style.ColorForRatio(e.SyrupRatio));
 
     public void Bind(Media3Session s)
     {
@@ -71,12 +82,27 @@ public class TrialGridView : MonoBehaviour
 
         GameObject label = Instantiate(labelPrefab, item.root.transform);
         label.transform.localPosition = labelOffset;
-        //item.label = label.transform.Find("a").GetComponent<TMP_Text>();
-        item.water = label.transform.Find("WaterTxt").GetComponent<TMP_Text>();
-        item.syrup = label.transform.Find("SyrupTxt").GetComponent<TMP_Text>();
-        item.total = label.transform.Find("TotalTxt").GetComponent<TMP_Text>();
         label.transform.localRotation = Quaternion.Euler(labelEuler);
+        //item.label = label.GetComponentInChildren<TMP_Text>(true);      // diganti tiga teks terpisah di bawah
+        item.water = FindText(label.transform, "WaterTxt");
+        item.syrup = FindText(label.transform, "SyrupTxt");
+        item.total = FindText(label.transform, "TotalTxt");
         return item;
+    }
+
+    // Cari teks anak berdasarkan nama (anak langsung dulu, lalu seluruh keturunan); kosong + peringatan kalau tidak ada
+    TMP_Text FindText(Transform root, string childName)
+    {
+        Transform t = root.Find(childName);
+        if (t == null)
+        {
+            foreach (Transform c in root.GetComponentsInChildren<Transform>(true))
+                if (c.name == childName) { t = c; break; }
+        }
+
+        TMP_Text text = t != null ? t.GetComponent<TMP_Text>() : null;
+        if (text == null) Debug.LogWarning($"[{name}] TrialGridView: label prefab tidak punya teks bernama '{childName}'.", this);
+        return text;
     }
 
     void Rebuild()
@@ -86,7 +112,6 @@ public class TrialGridView : MonoBehaviour
         dirty = false;
 
         int n = session.Entries.Count;
-        int max = session.Limits.MaxPerCup;
         while (items.Count < n) items.Add(CreateItem());
 
         for (int i = 0; i < items.Count; i++)
@@ -98,17 +123,14 @@ public class TrialGridView : MonoBehaviour
             if (!used) continue;
 
             Media3Entry e = session.Entries[i];
-
             it.vessel.ScaleVisible = false;                              // tanpa garis partisi
-            it.target = alwaysFull ? 1f : Mathf.Clamp01(e.TotalSections / (float)(2 * max));
 
-            //it.target = Mathf.Clamp01(e.TotalSections / (float)(2 * max));
+            // tinggi isi = jumlah tuangan percobaan itu / kapasitas wadah, jadi percobaan berbeda terlihat berbeda levelnya
+            it.target = Mathf.Clamp01(e.LevelRatio(session.Limits)) * maxFill;
             it.fill = wasActive ? it.target : 0f;          // wadah baru muncul naik dari kosong; yang sudah ada langsung mengikuti data
             it.vessel.Fill = it.fill;
-            it.vessel.LiquidColor = style == null ? Color.white : style.ColorForRatio(e.SyrupRatio);
+            it.vessel.LiquidColor = ColorOf(e);
 
-            //if (it.label)
-            //    it.label.text = $"Wadah percobaan {i + 1}\n<sprite name=\"{waterSpriteName}\"> {e.waterSections} : <sprite name=\"{syrupSpriteName}\"> {e.syrupSections}";
             if (it.water)
                 it.water.text = $"{e.waterSections}";
             if (it.syrup)
@@ -123,9 +145,10 @@ public class TrialGridView : MonoBehaviour
     // Susunan grid terpusat; baris pertama paling jauh dari penonton (+Z), baris terakhir paling dekat
     Vector3 SlotPosition(int i, int n)
     {
-        int rowCount = Mathf.CeilToInt(n / (float)columns);
-        int row = i / columns, col = i % columns;
-        int colsInRow = Mathf.Min(columns, n - row * columns);
+        int cols = singleRow ? Mathf.Max(1, n) : columns;
+        int rowCount = Mathf.CeilToInt(n / (float)cols);
+        int row = i / cols, col = i % cols;
+        int colsInRow = Mathf.Min(cols, n - row * cols);
 
         float x = (col - (colsInRow - 1) * 0.5f) * spacing.x;
         float z = ((rowCount - 1) * 0.5f - row) * spacing.y;

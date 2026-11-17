@@ -30,6 +30,7 @@ public class LiquidDragController : MonoBehaviour
     // Diisi controller halaman
     public Func<LiquidKind, VesselActor, bool> IsValidTarget;
     public Func<LiquidKind, Color> BottleColor;
+    public Func<bool> CanBegin;     // diisi controller halaman; false = drag tidak boleh dimulai (mis. botol sedang menuang)
 
     public event Action<LiquidDrop> Dropped;          // dilepas di dunia (target boleh null)
     public event Action Cancelled;                     // dilepas di HUD atau dibatalkan
@@ -51,6 +52,7 @@ public class LiquidDragController : MonoBehaviour
     public bool Begin(LiquidKind liquidKind, Sprite sprite, Vector2 size, Vector2 screenPos, Camera uiCamera)
     {
         if (IsDragging) return false;
+        if (CanBegin != null && !CanBegin()) return false;
         if (ghostRoot == null)
         {
             Debug.LogError($"[{name}] LiquidDragController: 'Ghost Root' harus diisi.", this);

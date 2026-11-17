@@ -29,6 +29,7 @@ public class PourController : MonoBehaviour
     [SerializeField] Camera worldCamera;               // kosong = Camera.main
     [SerializeField] LayerMask pourMask;               // SATU layer khusus (mis. "Pour")
     [SerializeField] string notMovableMessage;         // kosong = pakai Media1Messages.NotMovable
+    [SerializeField] bool logUiBlock;                  // debug: catat objek UI yang menghalangi grab (gelas tidak bisa diangkat)
 
     [Header("Gerak")]
     [SerializeField] float dragLift = 0.02f;           // meter: gelas terangkat saat di-drag
@@ -55,6 +56,10 @@ public class PourController : MonoBehaviour
     Plane dragPlane;
     Vector3 grabOffset;
 
+    // Tuangan yang sedang berjalan (dilacak supaya bisa dibatalkan bersih saat halaman dimatikan)
+    sealed class ActiveJob { public PourJob job; }
+    readonly List<ActiveJob> activeJobs = new List<ActiveJob>();
+
     Camera Cam => worldCamera ? worldCamera : Camera.main;
     int Layer => pourMask.value == 0 ? 0 : Mathf.RoundToInt(Mathf.Log(pourMask.value & -pourMask.value, 2f));
     public bool IsBusy => mode != Mode.Idle;     // sedang di-drag atau tuangan masih berjalan
@@ -80,6 +85,46 @@ public class PourController : MonoBehaviour
         foreach (VesselActor a in AllActors()) if (a) a.SetupCollider(Layer);
         mode = Mode.Idle;
         activeRoutines = 0;
+    }
+
+    // Halaman dimatikan (marker hilang, pindah halaman): batalkan semuanya supaya aliran dan gelas tidak tertinggal di tengah jalan
+    void OnDisable()
+    {
+        if (gameObject.scene.isLoaded) AbortAll();
+        else StopAllCoroutines();
+    }
+
+    // Hentikan semua yang sedang berjalan dan kembalikan keadaan bersih: aliran hilang, gelas kembali ke pivot, botol dimatikan, mode Idle
+    public void AbortAll()
+    {
+        StopAllCoroutines();
+
+        if (stream) stream.Hide();
+        if (secondStream) secondStream.Hide();
+
+        foreach (ActiveJob a in activeJobs)
+        {
+            if (a.job.source != null && a.job.disposeSource) a.job.source.gameObject.SetActive(false);      // botol dari gambar
+            a.job.onDone?.Invoke();
+        }
+        activeJobs.Clear();
+
+        if (hoverActor) hoverActor.SetTargeted(false);
+        dragged = null;
+        hoverActor = null;
+
+        if (movableActors != null)
+            foreach (VesselActor a in movableActors) SnapHome(a);
+
+        mode = Mode.Idle;
+        activeRoutines = 0;
+    }
+
+    static void SnapHome(VesselActor a)
+    {
+        if (a == null) return;
+        a.transform.localPosition = a.HomeLocalPosition;
+        a.transform.localRotation = a.HomeLocalRotation;
     }
 
     void Update()
@@ -144,7 +189,11 @@ public class PourController : MonoBehaviour
     // ---------------- grab dan drag ----------------
     void TryGrab(Vector2 pos)
     {
-        if (IsOverUi(pos)) return;
+        if (IsOverUi(pos, out GameObject blocker))
+        {
+            if (logUiBlock) Debug.Log($"[PourController] grab diblokir UI: {PathOf(blocker)}", blocker);
+            return;
+        }
 
         Ray ray = Cam.ScreenPointToRay(pos);
         int n = Physics.RaycastNonAlloc(ray, hits, 10f, pourMask, QueryTriggerInteraction.Collide);
@@ -234,13 +283,18 @@ public class PourController : MonoBehaviour
     // ---------------- tuang ----------------
     static Vector3 Flat(Vector3 v) { v.y = 0f; return v; }
 
+    static bool SourceVisible(Renderer r) => r == null || (r.enabled && r.gameObject.activeInHierarchy);
+
     IEnumerator PourRoutine(PourJob job, IPourSession session, WaterStream waterStream)
     {
         VesselActor src = job.source, tgt = job.target;
+        var tracked = new ActiveJob { job = job };
+        activeJobs.Add(tracked);
         float duration = job.seconds > 0f ? job.seconds : pourDuration * (job.durationScale > 0f ? job.durationScale : 1f);
 
         Transform root = src.transform;
         LiquidVessel sv = src.Vessel, tv = tgt.Vessel;
+        Renderer srcRenderer = sv.Glass != null ? sv.Glass.GetComponentInChildren<Renderer>() : null;      // dimatikan handler marker saat tracking hilang
         binder.TryGetContainer(sv, out LiquidContainer sc);
         binder.TryGetContainer(tv, out LiquidContainer tc);
 
@@ -309,7 +363,8 @@ public class PourController : MonoBehaviour
             if (flowing)
             {
                 flowT += dt;
-                waterStream.SetPath(lipNow, tv.LiquidSurfaceCenterWorld(), width, sv.LiquidColor);
+                if (SourceVisible(srcRenderer)) waterStream.SetPath(lipNow, tv.LiquidSurfaceCenterWorld(), width, sv.LiquidColor);
+                else waterStream.Hide();      // marker hilang di tengah tuangan: gelas tersembunyi, aliran tidak boleh melayang
                 if (flowT >= duration) break;
                 if (sd > -lipMargin) angle = Mathf.Min(angle + tiltRate * dt, maxTilt);
             }
@@ -333,6 +388,7 @@ public class PourController : MonoBehaviour
             yield return null;
         }
 
+        activeJobs.Remove(tracked);
         if (job.disposeSource) src.gameObject.SetActive(false);        // botol: hilang setelah menuang
         else yield return ReturnHome(src, returnTime);
         job.onDone?.Invoke();
@@ -358,8 +414,19 @@ public class PourController : MonoBehaviour
     }
 
     // UI HUD (overlay) selalu menghalangi; UI world-space hanya kalau interaktif
-    static bool IsOverUi(Vector2 pos)
+    static bool IsOverUi(Vector2 pos) => IsOverUi(pos, out _);
+
+    static string PathOf(GameObject go)
     {
+        if (go == null) return "(kosong)";
+        string path = go.name;
+        for (Transform t = go.transform.parent; t != null; t = t.parent) path = t.name + "/" + path;
+        return path;
+    }
+
+    static bool IsOverUi(Vector2 pos, out GameObject blocker)
+    {
+        blocker = null;
         if (EventSystem.current == null) return false;
         var data = new PointerEventData(EventSystem.current) { position = pos };
         uiHits.Clear();
@@ -370,12 +437,15 @@ public class PourController : MonoBehaviour
             GameObject go = uiHits[i].gameObject;
             Canvas canvas = go.GetComponentInParent<Canvas>();
             bool worldSpace = canvas != null && canvas.rootCanvas.renderMode == RenderMode.WorldSpace;
-            if (!worldSpace) return true;
+            if (!worldSpace) { blocker = go; return true; }
 
             if (ExecuteEvents.GetEventHandler<IPointerClickHandler>(go) != null
                 || ExecuteEvents.GetEventHandler<IPointerDownHandler>(go) != null
                 || ExecuteEvents.GetEventHandler<IDragHandler>(go) != null)
+            {
+                blocker = go;
                 return true;
+            }
         }
         return false;
     }

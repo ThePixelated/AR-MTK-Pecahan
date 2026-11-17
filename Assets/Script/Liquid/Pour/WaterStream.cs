@@ -3,6 +3,8 @@ using UnityEngine.Rendering;
 
 // Aliran air: tabung melengkung (parabola) dari bibir gelas ke permukaan penerima. Mesh dihitung ulang tiap frame.
 // Taruh di objek kosong di akar scene (tanpa skala).
+// Tersembunyi = renderer mati DAN mesh dikempiskan. Handler marker Vuforia menyalakan ulang semua Renderer saat target ditemukan,
+// jadi renderer saja tidak cukup: tanpa pengempisan, sisa aliran terakhir muncul lagi sampai tuangan berikutnya.
 public class WaterStream : MonoBehaviour
 {
     static readonly int ColorId = Shader.PropertyToID("_Color");
@@ -17,6 +19,10 @@ public class WaterStream : MonoBehaviour
     MaterialPropertyBlock mpb;
     Vector3[] verts;
     Vector2[] uvs;
+    bool shown;          // aliran memang sedang dipakai
+    bool collapsed;      // mesh sudah dikempiskan
+
+    public bool IsShown => shown;
 
     void Awake()
     {
@@ -49,11 +55,32 @@ public class WaterStream : MonoBehaviour
         mr.receiveShadows = false;
         mr.enabled = false;
         mpb = new MaterialPropertyBlock();
+        collapsed = true;      // vertex awal semua nol
     }
 
     void OnDestroy() { if (mesh) Destroy(mesh); }
 
-    public void Hide() { if (mr) mr.enabled = false; }
+    // Kalau handler marker menyalakan renderer saat aliran tidak dipakai, matikan lagi sebelum frame digambar
+    void LateUpdate()
+    {
+        if (!shown && mr != null && mr.enabled) mr.enabled = false;
+    }
+
+    public void Hide()
+    {
+        shown = false;
+        if (mr) mr.enabled = false;
+        Collapse();
+    }
+
+    void Collapse()
+    {
+        if (mesh == null || collapsed) return;
+        System.Array.Clear(verts, 0, verts.Length);
+        mesh.vertices = verts;
+        mesh.bounds = new Bounds(Vector3.zero, Vector3.zero);
+        collapsed = true;
+    }
 
     // Lintasan: horizontal linear, tinggi turun kuadratik (mulai mendatar, jatuh ke end)
     public void SetPath(Vector3 start, Vector3 end, float width, Color color)
@@ -87,6 +114,8 @@ public class WaterStream : MonoBehaviour
         mesh.vertices = verts;
         mesh.uv = uvs;
         mesh.RecalculateBounds();
+        collapsed = false;
+        shown = true;
 
         mr.GetPropertyBlock(mpb);
         mpb.SetColor(ColorId, color);

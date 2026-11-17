@@ -10,6 +10,18 @@ public static class Media3Messages
     public const string EnterEntry = "Masuk mode entri.";
     public const string InputInCompareMode = "Kembali ke mode entri dulu untuk menambah percobaan.";
 
+    public const string MergeNeedsFull = "Isi kedua gelas dulu ya, baru digabungkan.";
+
+    static string Cup(LiquidKind kind) => kind == LiquidKind.Water ? "air" : "sirup";
+
+    public static string CupEmpty(LiquidKind kind) => $"Gelas {Cup(kind)} sudah kosong. Tekan Isi dulu ya.";
+    public static string CupStillFull(LiquidKind kind) => $"Gelas {Cup(kind)} masih penuh.";
+    public static string WadahFull(Media3Limits limits) => $"Wadah sudah penuh ({limits.MaxTotalPours} tuangan). Catat dengan Input atau atur ulang.";
+    // Dipertahankan supaya Media3Controller lama tetap terkompilasi sampai tahap berikutnya menggantinya dengan ForMerge
+    public static string MergeBlocked(Media3Limits limits) => MergeWadahFull(limits);
+
+    public static string MergeWadahFull(Media3Limits limits) => $"Tidak muat dua tuangan lagi (maksimal {limits.MaxTotalPours}). Tuang satu per satu atau catat dulu.";
+
     public static string EntryAdded(int number, Media3Entry e, bool nowFull)
     {
         string s = $"Percobaan {number} tercatat: air {e.waterSections} : sirup {e.syrupSections}.";
@@ -21,14 +33,35 @@ public static class Media3Messages
 
     public static string EntryRemoved(int number) => $"Percobaan {number} dihapus.";
 
-    public static string MergeBlocked(Media3Limits limits) =>
-        $"Air atau sirup sudah maksimal ({limits.MaxPerCup} cangkir), jadi tidak bisa digabungkan lagi.";
-
-    public static string For(Media3InputResult r, Media3Limits limits) => r switch
+    // Pesan untuk tuangan yang ditolak (swipe gelas ke wadah)
+    public static string ForPour(PourError err, LiquidKind kind, Media3Limits limits)
     {
-        Media3InputResult.TrialsFull => $"Percobaan sudah penuh (maksimal {limits.MaxTrials}). Coba lihat perbandingan.",
-        Media3InputResult.NothingPoured => "Tuang air atau sirup ke wadah dulu ya.",
-        Media3InputResult.DuplicateEntry => "Campuran ini sudah ada. Coba jumlah yang lain.",
-        _ => ""
-    };
+        switch (err)
+        {
+            case PourError.SourceEmpty: return CupEmpty(kind);
+            case PourError.TargetFull: return WadahFull(limits);
+            default: return "";
+        }
+    }
+
+    public static string ForMerge(PourError err, Media3Limits limits)
+    {
+        switch (err)
+        {
+            case PourError.SourceEmpty: return MergeNeedsFull;
+            case PourError.TargetFull: return MergeWadahFull(limits);
+            default: return "";
+        }
+    }
+
+    public static string For(Media3InputResult r, Media3Limits limits)
+    {
+        switch (r)
+        {
+            case Media3InputResult.TrialsFull: return $"Percobaan sudah penuh (maksimal {limits.MaxTrials}). Coba lihat perbandingan.";
+            case Media3InputResult.NothingPoured: return "Tuang air atau sirup ke wadah dulu ya.";
+            case Media3InputResult.DuplicateEntry: return "Campuran ini sudah ada. Coba jumlah yang lain.";
+            default: return "";
+        }
+    }
 }

@@ -374,25 +374,23 @@ public class AudioService : MonoBehaviour
         v.generation++;      // handle lama tidak berlaku lagi
     }
 
-    // ---------------- musik ----------------
-    public void PlayMusic(AudioId id)
-    {
-        if (id == AudioId.None || !TryCue(id, out AudioCue cue)) return;
-        PlayMusic(cue);
-    }
+    // Crossfade dari musik yang sedang berjalan; cue yang sama dibiarkan.
+    // Cue musik berisi 2+ klip = playlist (acak tanpa pengulangan langsung, crossfade otomatis di akhir trek).
+    public void PlayMusic(AudioCue cue) => PlayMusic(cue, false);
 
-    // Crossfade dari musik yang sedang berjalan; cue yang sama dibiarkan
-    public void PlayMusic(AudioCue cue)
+    void PlayMusic(AudioCue cue, bool force)
     {
         if (cue == null) return;
+
+        Voice current = musicCurrent >= 0 ? musicVoices[musicCurrent] : null;
+        if (!force && current != null && current.active && current.cue == cue && !current.stopAfterFade) return;
+
         if (!PickClip(cue, out AudioClip clip))
         {
             if (settings.logMissingCues && warnedNoClips.Add(cue)) Debug.LogWarning($"[Audio] musik {cue.name} belum punya klip.", cue);
             return;
         }
-
-        Voice current = musicCurrent >= 0 ? musicVoices[musicCurrent] : null;
-        if (current != null && current.active && current.cue == cue && !current.stopAfterFade) return;
+        bool playlist = clipBuffer.Count > 1;
 
         float fade = settings.musicCrossfadeSeconds;
         if (current != null && current.active) BeginStop(current, fade);
@@ -419,7 +417,7 @@ public class AudioService : MonoBehaviour
         AudioSource s = v.source;
         s.Stop();
         s.clip = clip;
-        s.loop = true;
+        s.loop = !playlist;
         s.priority = 0;
         s.spatialBlend = 0f;
         s.outputAudioMixerGroup = cue.mixerGroupOverride != null ? cue.mixerGroupOverride : musicGroup;
@@ -428,6 +426,18 @@ public class AudioService : MonoBehaviour
         s.Play();
 
         musicCurrent = next;
+    }
+
+    // Trek hampir habis: crossfade ke trek berikutnya dari cue yang sama
+    void UpdateMusicPlaylist()
+    {
+        if (musicCurrent < 0 || AudioListener.pause) return;
+        Voice v = musicVoices[musicCurrent];
+        if (!v.active || v.stopAfterFade || v.cue == null || v.source.loop || v.source.clip == null) return;
+
+        float lead = Mathf.Max(0.05f, settings.musicCrossfadeSeconds) + 0.25f;
+        if (v.source.clip.length - v.source.time > lead) return;
+        PlayMusic(v.cue, true);
     }
 
     public void StopMusic(float fade = -1f)
@@ -485,6 +495,8 @@ public class AudioService : MonoBehaviour
             ApplyVolume(v);
             v.source.pitch = v.basePitch * v.userPitch;
         }
+
+        UpdateMusicPlaylist();
     }
 
     // Loop tanpa pemilik yang masih hidup dihentikan (halaman dinonaktifkan atau objek dihancurkan)
