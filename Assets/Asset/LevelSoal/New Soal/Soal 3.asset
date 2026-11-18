@@ -35,7 +35,7 @@ MonoBehaviour:
     - whole: 0
       numerator: 3
       denominator: 4
-    - whole: 0
+    - whole: 1
       numerator: 2
       denominator: 4
     rule: 0
