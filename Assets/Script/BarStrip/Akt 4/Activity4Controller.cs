@@ -14,6 +14,7 @@ public class Activity4Controller : MonoBehaviour
     [SerializeField] SimpleConfirmDialog confirmDialog;
     [SerializeField] SessionOptions options = new SessionOptions();    // pindah atau salin balok dari Kotak, dan cek bilangan bulat
     [SerializeField] TMP_Text commitLabel;                   // teks tombol +/- (AdditionBtn/Text (TMP))
+    [SerializeField] SoalRowView soalRow;                    // baris Soal: operan A dan B, dan kotak "?" untuk jawaban siswa
 
     [Header("Objek dunia milik aktivitas ini")]
     [SerializeField] GameObject[] worldRoots;                // DpzRoot, area hapus, HeldGhost3D: aktif hanya selama halaman ini aktif (awalnya NONAKTIF di scene)
@@ -93,17 +94,55 @@ public class Activity4Controller : MonoBehaviour
             confirmDialog.Inform(Messages.KurangPeringatanJudul, Messages.KurangPeringatanIsi);
     }
 
-    // onClick CekHasilBtn
+    // onClick tombol Jumlahkan (world space): balok area atas digabung; sebelum itu masing-masing tetap terpisah
+    public void OnCombinePressed()
+    {
+        CombineResult r = Session.CombineUpper();
+        if (r == CombineResult.Berhasil) return;
+
+        Feedback.Show(Messages.For(r), r == CombineResult.SudahDijumlahkan ? FeedbackKind.Info : FeedbackKind.Warning);
+    }
+
+    // onClick CekHasilBtn: balok area bawah dan jawaban di kotak "?" dinilai terpisah (urutan isi bebas)
     public void OnCheckPressed()
     {
-        CheckVerdict? v = Session.Check();
-        if (v == null)
+        Fraction? answer = null;
+        if (soalRow != null)
         {
-            Feedback.Show(Messages.For(RejectReason.SoalBelumDibentuk), FeedbackKind.Warning);
-            return;
+            soalRow.CloseNumpad();
+            NumberLineSoalStatus status = soalRow.ReadAnswer(out Fraction value);
+            if (status == NumberLineSoalStatus.Incomplete)
+            {
+                Feedback.Show(Messages.AnswerIncomplete, FeedbackKind.Info);
+                return;
+            }
+            if (status == NumberLineSoalStatus.Impossible)
+            {
+                soalRow.ClearAnswer();
+                Feedback.Show(NumberLineMessages.SoalImpossible, FeedbackKind.Warning);
+                return;
+            }
+            if (status == NumberLineSoalStatus.Valid) answer = value;
         }
 
-        Feedback.Show(Messages.For(v.Value), v == CheckVerdict.Benar ? FeedbackKind.Success : FeedbackKind.Warning);
+        FullCheckResult r = Session.CheckFull(answer);
+        Feedback.Show(Messages.For(r, operation, soalRow != null ? soalRow.AnswerText() : ""), Messages.KindOf(r.outcome));
+
+        // tanda benar atau salah di kotak "?": jawaban benar pada Benar dan BalokSalah
+        if (soalRow != null && r.Evaluated)
+            soalRow.ShowAnswerIndicator(r.outcome == FullCheckOutcome.Benar || r.outcome == FullCheckOutcome.BalokSalah);
+    }
+
+    // onClick tombol Atur Ulang: mengosongkan Kotak A dan B, area, soal, dan jawaban; membuka kunci setelah dijumlahkan
+    public void OnResetAllPressed()
+    {
+        ConfirmOrRun(true, "Semua isi kotak, balok, dan soal akan dihapus. Lanjutkan?", ResetEverything);
+    }
+
+    void ResetEverything()
+    {
+        Session.ResetAll();
+        if (soalRow != null) soalRow.ClearAnswer();
     }
 
     [ContextMenu("Debug: Commit Problem")]

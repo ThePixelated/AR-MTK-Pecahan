@@ -46,6 +46,7 @@ public class DpzView : MonoBehaviour
     [SerializeField] float colliderHeight = 0.02f;
     [SerializeField] float raycastMaxDistance = 5f;
     [SerializeField] bool closeSelectionOnUpdate = true;   // true: panel aksi menutup setiap ada perubahan area; false: hanya saat jumlah blok berubah
+    [SerializeField] bool subtractUpperFillFromRight = false;   // Media 6: balok area atas terisi dari kanan ke kiri (default: kiri ke kanan)
 
     struct SectionRect { public Vector2 center; public Vector2 size; }   // center = (x, z)
 
@@ -131,7 +132,7 @@ public class DpzView : MonoBehaviour
 
         session = controller.Session;
         session.Dpz.Changed += RefreshLower;
-        session.Upper.Changed += RefreshUpper;
+        session.UpperViewChanged += RefreshUpper;      // isi area berubah, atau tombol Jumlahkan ditekan
         bound = true;
 
         outerCol ??= CreateAreaCollider("OuterCatch", DpzColliderKind.Outer);
@@ -150,7 +151,7 @@ public class DpzView : MonoBehaviour
     {
         if (!bound) return;
         session.Dpz.Changed -= RefreshLower;
-        session.Upper.Changed -= RefreshUpper;
+        session.UpperViewChanged -= RefreshUpper;
         bound = false;
     }
 
@@ -241,7 +242,7 @@ public class DpzView : MonoBehaviour
         go.transform.SetParent(transform, false);
         var b = go.AddComponent<DpzBlockView>();
         b.Init(style, visuals, decalMaterial, this, DpzLayer, kind);
-        b.SetFillFromRight(kind == DpzColliderKind.UpperBlock && session != null && session.Op == Operation.Subtract);
+        b.SetFillFromRight(kind == DpzColliderKind.UpperBlock && session != null && session.Op == Operation.Subtract && subtractUpperFillFromRight);
         return b;
     }
 
@@ -495,7 +496,16 @@ public class DpzView : MonoBehaviour
         bound ? session.TryMoveToArea(fromA, rowIndex) : RejectReason.SoalBelumDibentuk;
 
     // Balok bagian atas dikembalikan ke Kotak asalnya
-    public bool ReturnUpperBlock(int composedIndex) => bound && session.ReturnComposed(composedIndex);
+    public bool ReturnUpperBlock(int composedIndex)
+    {
+        if (!bound) return false;
+        if (session.IsCombineLocked)
+        {
+            Feedback.Show(Messages.For(RejectReason.AreaTerkunci), FeedbackKind.Warning);
+            return false;
+        }
+        return session.ReturnComposed(composedIndex);
+    }
 
     // Gabung antar-blok dpz (balok yang diangkat dilepas di atas balok lain); mengembalikan jumlah satuan yang pindah
     public int TryMergeBlocks(int sourceIndex, int targetIndex) =>

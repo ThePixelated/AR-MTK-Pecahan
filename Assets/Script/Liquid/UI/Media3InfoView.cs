@@ -8,7 +8,7 @@ public class Media3InfoView : MonoBehaviour
     [SerializeField] TMP_Text waterTxt;
     [SerializeField] TMP_Text syrupTxt;
     [SerializeField] TMP_Text totalTxt;
-    [SerializeField] string unit = "cangkir";
+    [SerializeField] string unit = "gelas";
     [SerializeField] bool showCapacity = false;
 
     public void Show(int water, int syrup, int capacity = 0)

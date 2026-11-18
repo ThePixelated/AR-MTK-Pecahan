@@ -105,7 +105,7 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
     {
         if (session.IsKotakLocked(isKotakA))
         {
-            Feedback.Show(Messages.For(RejectReason.KotakTerkunci), FeedbackKind.Warning);
+            Feedback.Show(Messages.For(session.KotakLockReason(isKotakA)), FeedbackKind.Warning);
             return;
         }
         controller.ConfirmOrRun(session.KotakEditClearsDpz, ChangeKotakWarning,
@@ -117,7 +117,7 @@ public class KotakDropZone : MonoBehaviour, IFractionDropZone
         if (!bound || contents.IsEmpty) return;
         if (session.IsKotakLocked(isKotakA))
         {
-            Feedback.Show(Messages.For(RejectReason.KotakTerkunci), FeedbackKind.Warning);
+            Feedback.Show(Messages.For(session.KotakLockReason(isKotakA)), FeedbackKind.Warning);
             return;
         }
         controller.ConfirmOrRun(session.KotakEditClearsDpz, ChangeKotakWarning,

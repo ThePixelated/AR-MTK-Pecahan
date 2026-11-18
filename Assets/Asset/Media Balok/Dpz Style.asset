@@ -15,7 +15,7 @@ MonoBehaviour:
   wholeLength: 0.3
   thickness: 0.015
   height: 0.012
-  cellGap: 0
+  cellGap: 0.0015
   inset: 0
   rowGap: 0.01
   innerPadding: 0.01
@@ -49,9 +49,8 @@ MonoBehaviour:
   heldGhostLift: 0.01
   sectionPadding: 0.003
   sectionGapRows: 1
-  showCarryBlock: 1
+  carryUseSourceColors: 1
   carryColor: {r: 1, g: 0.85, b: 0.3, a: 1}
-  carryMixedColor: 0
   carryTranslucent: 0
   carryOpacity: 0.6
   carryPulse: 0
@@ -136,11 +135,11 @@ MonoBehaviour:
     flashDepth: 0.813
     lineAnimated: 0
     lineAnimSpeed: 0.01
-    borderColor: {r: 0.33636454, g: 0.8113208, b: 0.2793699, a: 0.9}
+    borderColor: {r: 1, g: 0.930903, b: 0, a: 0.9}
     borderThickness: 0.001
-    fillColor: {r: 0.3372549, g: 0.8117647, b: 0.2784314, a: 0.06}
+    fillColor: {r: 1, g: 0.93495333, b: 0, a: 0.31764707}
     hatch: 1
-    hatchColor: {r: 0.3372549, g: 0.8117647, b: 0.2784314, a: 0.2}
+    hatchColor: {r: 1, g: 0.8712505, b: 0.15566039, a: 0.6509804}
     hatchAngle: 125
     hatchSpacing: 0.006
     hatchWidth: 0.0006
@@ -148,6 +147,6 @@ MonoBehaviour:
     hatchDashLength: 0.004
     hatchDashGap: 0.003
     title: <b>Balok Hasil</b>
-    titleColor: {r: 0.3372549, g: 0.8117647, b: 0.2784314, a: 1}
+    titleColor: {r: 1, g: 0.87058824, b: 0.15686275, a: 1}
     titleSizeMM: 11
     titleOffset: {x: 0, y: 0.003}

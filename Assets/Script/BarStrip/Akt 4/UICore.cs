@@ -77,7 +77,7 @@ public static class Messages
             case FullCheckOutcome.BelumDijumlahkan: return "Tekan Jumlahkan dulu untuk menggabungkan balok di area atas.";
             case FullCheckOutcome.KeduanyaKosong: return "Susun balok di area bawah dan jawab soal terlebih dahulu.";
             case FullCheckOutcome.BalokKosong: return "Susun balok pecahan di area bawah terlebih dahulu.";
-            case FullCheckOutcome.JawabanKosong: return "Jawab soal di kotak ? terlebih dahulu.";
+            case FullCheckOutcome.JawabanKosong: return "Jawab soal di kotak jawaban terlebih dahulu.";
             case FullCheckOutcome.Benar: return "Benar! Balok dan jawabanmu tepat.";
             case FullCheckOutcome.BalokSalah:
                 string detail = r.blockVerdict == CheckVerdict.Kurang ? " Masih kurang, coba tambah balok."
