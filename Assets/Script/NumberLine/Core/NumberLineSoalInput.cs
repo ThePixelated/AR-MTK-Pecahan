@@ -76,6 +76,16 @@ public sealed class NumberLineSoalInput
         Changed?.Invoke();
     }
 
+    // Mengisi ketiga kotak sekaligus (null = kosong) dengan satu event Changed. Tidak dibatasi MaxCell: dipakai untuk
+    // soal hasil Generate dan untuk tes, bukan untuk ketikan siswa.
+    public void SetValue(int? newWhole, int? newNumerator, int? newDenominator)
+    {
+        whole = newWhole;
+        numerator = newNumerator;
+        denominator = newDenominator;
+        Changed?.Invoke();
+    }
+
     // Nilai Soal sebagai pecahan tak sejati (tidak disederhanakan): whole*penyebut + pembilang, per penyebut
     public NumberLineSoalStatus Evaluate(out Fraction value)
     {

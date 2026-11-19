@@ -1,14 +1,18 @@
 using System;
 
-// State mode Media 5: garis, soal, dan posisi pion. Soal hanya dibuat lewat TryNewProblem (tombol "Buat soal").
+// State mode Media 5. Dua keadaan:
+//   Explore: belum ada soal. Hewan boleh belum ada, ditaruh, digeser, atau ditarik kembali.
+//   Locked : ada soal (dari Generate Soal atau Enter Soal). Hewan terkunci, hanya bisa mundur (atau Ulangi ke A).
+// Murni logika (tanpa UI), jadi bisa dites tanpa scene.
 public sealed class Media5Session
 {
     public Media5Limits Limits { get; }
     public NumberLineConfig Config { get; private set; }
+    public bool HasPion { get; private set; }
     public int PionTick { get; private set; }
     public NumberLineProblem? Problem { get; private set; }
-    public bool IsSolved { get; private set; }
-    public int StartTick { get; private set; }    // posisi awal pion untuk soal ini (A, atau 0); tujuan tombol Coba lagi
+    public bool IsSolved { get; private set; }    // posisi pion dan jawaban pernah benar bersamaan untuk soal ini
+    public int StartTick { get; private set; }    // A; tujuan tombol Ulangi
 
     public event Action Changed;
 
@@ -26,19 +30,46 @@ public sealed class Media5Session
         Math.Clamp(Limits.Line.DefaultPartisi, Limits.Line.MinPartisi, Limits.Line.MaxPartisi));
 
     public bool HasProblem => Problem.HasValue;
+    public bool IsLocked => Problem.HasValue;
     public int ResultTick => Problem.HasValue ? Problem.Value.ResultTick : 0;
 
     // true = mengubah garis membuang soal yang belum terjawab benar, jadi UI menampilkan popup dulu
     public bool NeedsConfirmBeforeReconfigure => HasProblem && !IsSolved;
 
-    // true = keadaan awal: garis default, belum ada soal, pion di 0 (dipakai menolak Reset yang tidak perlu)
+    // true = keadaan awal: garis default, belum ada soal, belum ada hewan (isian A/B ditambahkan oleh controller)
     public bool IsPristine
     {
         get
         {
             NumberLineConfig d = DefaultConfig();
-            return !HasProblem && PionTick == 0 && Config.length == d.length && Config.partisi == d.partisi;
+            return !HasProblem && !HasPion && PionTick == 0 && Config.length == d.length && Config.partisi == d.partisi;
         }
+    }
+
+    // ---- hewan (hanya saat Explore) ----
+    // Menaruh atau menggeser hewan ke tick (dibatasi ke ujung garis). false = ditolak karena Locked.
+    public bool PlacePion(int tick)
+    {
+        if (IsLocked) return false;
+
+        tick = Math.Clamp(tick, 0, Config.MaxTick);
+        if (HasPion && PionTick == tick) return true;
+
+        HasPion = true;
+        PionTick = tick;
+        Changed?.Invoke();
+        return true;
+    }
+
+    // Tombol Tarik Kembali: hewan keluar dari garis. false = tidak ada hewan atau sedang Locked.
+    public bool RemovePion()
+    {
+        if (IsLocked || !HasPion) return false;
+
+        HasPion = false;
+        PionTick = 0;
+        Changed?.Invoke();
+        return true;
     }
 
     // ---- ukuran garis ----
@@ -50,7 +81,7 @@ public sealed class Media5Session
     }
 
     // Nilai sama dengan yang berlaku: tidak ada yang berubah.
-    // Nilai berbeda: soal dibuang (tidak dibuat ulang otomatis), pion ke 0, memori anti-ulang dikosongkan.
+    // Nilai berbeda: soal dibuang (tidak dibuat ulang), hewan (kalau ada) ke titik 0, memori anti-ulang dikosongkan.
     public NumberLineConfigError ApplyConfig(int length, int partisi)
     {
         NumberLineConfigError err = Validate(length, partisi);
@@ -68,7 +99,7 @@ public sealed class Media5Session
     }
 
     // ---- soal ----
-    // Tombol "Buat soal": soal baru untuk garis aktif; pion ke A (atau ke 0 kalau StartAtOperand mati)
+    // Generate Soal: soal baru untuk garis aktif. Mengunci; hewan pindah ke A (muncul kalau belum ada).
     public Media5ProblemError TryNewProblem()
     {
         if (Config.partisi < Limits.MinPartisiForProblem) return Media5ProblemError.PartisiTooSmall;
@@ -77,32 +108,98 @@ public sealed class Media5Session
         if (!generator.TryGenerate(Config, Limits.Operations, out NumberLineProblem p))
             return Media5ProblemError.NoProblemPossible;
 
-        Problem = p;
-        IsSolved = false;
-        StartTick = Limits.StartAtOperand ? p.aTick : 0;
-        PionTick = StartTick;
-        Changed?.Invoke();
+        Lock(p);
         return Media5ProblemError.None;
     }
 
-    // ---- lompat (1 tick per panggilan) ----
-    public Media5JumpResult JumpForward() => Jump(+1);
-    public Media5JumpResult JumpBackward() => Jump(-1);
+    // Enter Soal: A dan B dari isian siswa (pengurangan saja). Gagal = tidak ada yang berubah.
+    // Aturan: A > B >= 1, A tidak melewati panjang garis, A, B, dan hasilnya tepat di tick.
+    public Media5EnterError TryEnterProblem(NumberLineSoalInput a, NumberLineSoalInput b)
+    {
+        Media5EnterError err = ReadStatus(a, true, out Fraction va);
+        if (err != Media5EnterError.None) return err;
+        err = ReadStatus(b, false, out Fraction vb);
+        if (err != Media5EnterError.None) return err;
 
-    Media5JumpResult Jump(int direction)
+        err = ReadTick(va, true, out int aTick);
+        if (err != Media5EnterError.None) return err;
+        err = ReadTick(vb, false, out int bTick);
+        if (err != Media5EnterError.None) return err;
+
+        if (bTick < 1) return Media5EnterError.BZero;
+        if (aTick <= bTick) return Media5EnterError.AMustBeGreater;
+
+        var p = new NumberLineProblem(NumberLineOperation.Subtract, aTick, bTick);
+        if (!p.IsValidFor(Config)) return Media5EnterError.AMustBeGreater;     // pengaman; seharusnya tidak pernah terjadi
+
+        Lock(p);
+        return Media5EnterError.None;
+    }
+
+    void Lock(NumberLineProblem p)
+    {
+        Problem = p;
+        IsSolved = false;
+        StartTick = p.aTick;
+        HasPion = true;
+        PionTick = StartTick;
+        Changed?.Invoke();
+    }
+
+    static Media5EnterError ReadStatus(NumberLineSoalInput input, bool isA, out Fraction value)
+    {
+        value = Fraction.Zero;
+        if (input == null) return isA ? Media5EnterError.AMissing : Media5EnterError.BMissing;
+
+        switch (input.Evaluate(out value))
+        {
+            case NumberLineSoalStatus.Empty:
+                return isA ? Media5EnterError.AMissing : Media5EnterError.BMissing;
+            case NumberLineSoalStatus.Incomplete:
+                return isA ? Media5EnterError.AIncomplete : Media5EnterError.BIncomplete;
+            case NumberLineSoalStatus.Impossible:
+                return isA ? Media5EnterError.AImpossible : Media5EnterError.BImpossible;
+        }
+        return Media5EnterError.None;
+    }
+
+    Media5EnterError ReadTick(Fraction value, bool isA, out int tick)
+    {
+        switch (Config.Classify(value, out tick))
+        {
+            case NumberLineReach.NotOnPartition:
+                return isA ? Media5EnterError.ANotOnTick : Media5EnterError.BNotOnTick;
+            case NumberLineReach.BeyondLine:
+                return isA ? Media5EnterError.AExceedsLine : Media5EnterError.BExceedsLine;
+        }
+        return Media5EnterError.None;
+    }
+
+    // Clear Soal: kembali ke Explore. Hewan tetap ada dan pindah ke titik 0. false = memang tidak ada soal.
+    public bool ClearProblem()
+    {
+        if (!HasProblem) return false;
+
+        Problem = null;
+        IsSolved = false;
+        StartTick = 0;
+        PionTick = 0;
+        Changed?.Invoke();
+        return true;
+    }
+
+    // ---- gerak (hanya mundur, 1 tick per panggilan) ----
+    public Media5JumpResult JumpBackward()
     {
         if (!HasProblem) return Media5JumpResult.NoProblem;
+        if (PionTick <= 0) return Media5JumpResult.AtStart;
 
-        int next = PionTick + direction;
-        if (next < 0) return Media5JumpResult.AtStart;
-        if (next > Config.MaxTick) return Media5JumpResult.AtEnd;
-
-        PionTick = next;
+        PionTick--;
         Changed?.Invoke();
         return Media5JumpResult.Moved;
     }
 
-    // Tombol "Coba lagi": pion kembali ke posisi awal soal. Status terjawab tidak berubah.
+    // Tombol Ulangi: hewan kembali ke A, tanpa konfirmasi. Status terjawab tidak berubah.
     public Media5RetryResult RetryPosition()
     {
         if (!HasProblem) return Media5RetryResult.NoProblem;
@@ -114,26 +211,57 @@ public sealed class Media5Session
     }
 
     // ---- penilaian ----
-    // Hanya posisi akhir pion yang dinilai; jalur yang ditempuh bebas
-    public Media5CheckOutcome Check()
+    // Cek Hasil menilai dua hal: posisi pion DAN isi Panel Jawaban (pecahan ekuivalen dianggap sama, mis. 2/4 = 1/2).
+    // Jalur yang ditempuh pion bebas.
+    public Media5CheckResult Check(NumberLineSoalInput answer)
     {
-        if (!HasProblem) return Media5CheckOutcome.NoProblem;
+        if (!HasProblem) return new Media5CheckResult(Media5CheckOutcome.NoProblem, Media5AnswerState.Empty);
 
-        bool correct = PionTick == Problem.Value.ResultTick;
-        if (correct && !IsSolved)
+        bool positionOk = PionTick == Problem.Value.ResultTick;
+        Media5AnswerState state = ReadAnswer(answer);
+        bool answerOk = state == Media5AnswerState.Correct;
+
+        Media5CheckOutcome outcome;
+        if (positionOk && answerOk) outcome = Media5CheckOutcome.Correct;
+        else if (answerOk) outcome = Media5CheckOutcome.WrongPosition;
+        else if (!positionOk) outcome = Media5CheckOutcome.WrongBoth;
+        else if (state == Media5AnswerState.Empty) outcome = Media5CheckOutcome.AnswerEmpty;
+        else if (state == Media5AnswerState.Incomplete) outcome = Media5CheckOutcome.AnswerIncomplete;
+        else outcome = Media5CheckOutcome.WrongAnswer;
+
+        if (outcome == Media5CheckOutcome.Correct && !IsSolved)
         {
             IsSolved = true;
             Changed?.Invoke();
         }
-        return correct ? Media5CheckOutcome.Correct : Media5CheckOutcome.Wrong;
+        return new Media5CheckResult(outcome, state);
     }
 
-    // Tombol Reset: garis default, tanpa soal, pion ke 0
+    Media5AnswerState ReadAnswer(NumberLineSoalInput answer)
+    {
+        if (answer == null) return Media5AnswerState.Empty;
+
+        NumberLineSoalStatus status = answer.Evaluate(out Fraction value);
+        switch (status)
+        {
+            case NumberLineSoalStatus.Empty:
+                return Media5AnswerState.Empty;
+            case NumberLineSoalStatus.Incomplete:
+            case NumberLineSoalStatus.Impossible:
+                return Media5AnswerState.Incomplete;
+        }
+
+        if (Config.Classify(value, out int tick) != NumberLineReach.OnLine) return Media5AnswerState.Wrong;
+        return tick == ResultTick ? Media5AnswerState.Correct : Media5AnswerState.Wrong;
+    }
+
+    // Tombol Reset (hard reset): garis default, tanpa soal, tanpa hewan
     public void ResetAll()
     {
         Config = DefaultConfig();
         Problem = null;
         IsSolved = false;
+        HasPion = false;
         PionTick = 0;
         StartTick = 0;
         generator.ClearMemory();
