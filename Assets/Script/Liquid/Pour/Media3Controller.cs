@@ -243,7 +243,7 @@ public class Media3Controller : MonoBehaviour
 
         if (waterCounterText) waterCounterText.text = water.ToString();
         if (syrupCounterText) syrupCounterText.text = syrup.ToString();
-        if (capacityText) capacityText.text = $"{water + syrup}/{limits.MaxTotalPours}";
+        if (capacityText) capacityText.text = $"{water + syrup}";
         if (waterRefillButton) waterRefillButton.interactable = !session.WaterCupFull;
         if (syrupRefillButton) syrupRefillButton.interactable = !session.SyrupCupFull;
     }

@@ -15,7 +15,7 @@ MonoBehaviour:
   levelTitle: Level 1
   stayUntilCorrect: 1
   questions:
-  - kind: 0
+  - kind: 2
     text: Perhatikan gambar di samping. Atur garis bilangan supaya sesuai dengan
       gambar tersebut.
     image: {fileID: 778809669, guid: 759167d6203499b4bae29a83795679ce, type: 3}

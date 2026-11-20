@@ -9,7 +9,7 @@ public class PanelAnimator : MonoBehaviour
     // Kunci = RectTransform yang digerakkan entri awal chain. OPEN dan CLOSE pada target yang sama
     // tidak pernah berjalan bersamaan: yang baru menggantikan yang lama, lanjut dari posisi saat ini.
     private readonly Dictionary<RectTransform, Coroutine> activeRuns = new Dictionary<RectTransform, Coroutine>();
-
+    public float DurationOf(int index) => index >= 0 && index < entries.Count ? entries[index].Duration : 0f;
     public void Trigger(int startIndex)
     {
         if (startIndex < 0 || startIndex >= entries.Count)

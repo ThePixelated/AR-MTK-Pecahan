@@ -15,7 +15,7 @@ MonoBehaviour:
   levelTitle: Level 1
   stayUntilCorrect: 1
   questions:
-  - kind: 1
+  - kind: 2
     text: Siti memiliki 5 potong pita yang sama Panjang dan 21 butir manik-manik..
       Setiap potong pita panjangnya 1/2 meter. Untuk membuat buket bunga, Siti membutuhkan
       pita sepanjang 3 meter. Apakah pita yang dimiliki Siti cukup untuk membuat

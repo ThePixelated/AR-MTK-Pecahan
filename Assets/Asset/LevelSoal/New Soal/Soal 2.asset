@@ -15,12 +15,12 @@ MonoBehaviour:
   levelTitle: Level 2
   stayUntilCorrect: 1
   questions:
-  - kind: 1
+  - kind: 2
     text: 'Siti memiliki 3 potong pita yang sama Panjang. Setiap potong pita panjangnya
       1/6 meter. Berapakah Panjang pita yang dimiliki Siti? '
     image: {fileID: 0}
     presetLength: 1
-    presetPartisi: 6
+    presetPartisi: 5
     lineAnswer:
       length: 0
       partisi: 0
@@ -46,11 +46,11 @@ MonoBehaviour:
     pions: []
     checkMode: 0
     lockConfig: 0
-  - kind: 1
+  - kind: 2
     text: Representasikan gambar berikut ke garis bilangan
     image: {fileID: -1892512054, guid: 2c36d7ca4e0db234392c0ce872b580a5, type: 3}
-    presetLength: 4
-    presetPartisi: 4
+    presetLength: 1
+    presetPartisi: 5
     lineAnswer:
       length: 0
       partisi: 0
@@ -76,10 +76,10 @@ MonoBehaviour:
     pions: []
     checkMode: 0
     lockConfig: 0
-  - kind: 1
+  - kind: 2
     text: Tentukanlah posisi 3 1/5 pada garis bilangan
     image: {fileID: 0}
-    presetLength: 4
+    presetLength: 1
     presetPartisi: 5
     lineAnswer:
       length: 0
@@ -106,12 +106,12 @@ MonoBehaviour:
     pions: []
     checkMode: 0
     lockConfig: 0
-  - kind: 1
+  - kind: 2
     text: Seekor kelinci bergerak 8/10 meter dari titik awal, kemudian bergerak lagi
       kea rah yang sama sejauh 6/10  meter. Tentukan posisi kelinci saat ini!
     image: {fileID: 0}
-    presetLength: 2
-    presetPartisi: 10
+    presetLength: 1
+    presetPartisi: 5
     lineAnswer:
       length: 0
       partisi: 0
@@ -137,12 +137,12 @@ MonoBehaviour:
     pions: []
     checkMode: 0
     lockConfig: 0
-  - kind: 1
+  - kind: 2
     text: 'Tersedia 4 kartu pecahan, Pilihlah dua buah kaertu di atas kemudian jumlahkan.
       Pilihlah hasil penjumlahan yang lebih dari satu dan paling dekat dengan 11/4. '
     image: {fileID: 552149007, guid: 54f97dfcbc2779a4e84b22985e700489, type: 3}
-    presetLength: 2
-    presetPartisi: 8
+    presetLength: 1
+    presetPartisi: 5
     lineAnswer:
       length: 0
       partisi: 0

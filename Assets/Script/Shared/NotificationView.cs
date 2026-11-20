@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,7 +10,15 @@ public class NotificationView : MonoBehaviour
     [SerializeField] PanelAnimator animator;
     [SerializeField] int openIndex = 0;
     [SerializeField] int closeIndex = 1;
+
+    [Header("Waktu baca")]
+    [Tooltip("Waktu minimal pesan terlihat, dihitung SETELAH bar selesai terbuka (durasi entri Open tidak memotongnya).")]
     [SerializeField] float holdSeconds = 2.2f;
+    [Tooltip("Tambahan waktu per karakter, supaya pesan panjang tidak hilang sebelum selesai dibaca.")]
+    [SerializeField] float secondsPerCharacter = 0.04f;
+    [SerializeField] float maxHoldSeconds = 8f;
+    [Tooltip("Pesan yang datang saat pesan lain masih tampil diantre, bukan langsung menimpa. Yang paling lama dibuang bila penuh.")]
+    [SerializeField] int maxQueued = 3;
 
     [Header("Tampilan")]
     [SerializeField] Image background;
@@ -22,8 +31,16 @@ public class NotificationView : MonoBehaviour
     [SerializeField] Color errorColor = new Color(0.98f, 0.74f, 0.74f);
     [SerializeField] Sprite infoIcon, successIcon, warningIcon, errorIcon;   // opsional
 
-    bool isOpen;
-    Coroutine hold;
+    struct Item
+    {
+        public string text;
+        public FeedbackKind kind;
+    }
+
+    readonly Queue<Item> queue = new Queue<Item>();
+    Coroutine runner;
+    string currentText;
+    float hideAt;
 
     void OnEnable()
     {
@@ -39,27 +56,58 @@ public class NotificationView : MonoBehaviour
     void OnDisable()
     {
         Feedback.Raised -= OnRaised;
-        hold = null;      // coroutine ikut berhenti saat nonaktif
+        queue.Clear();
+        runner = null;        // coroutine ikut berhenti saat nonaktif
+        currentText = null;
     }
 
     void OnRaised(string text, FeedbackKind kind)
     {
         if (!isActiveAndEnabled || animator == null || string.IsNullOrEmpty(text)) return;
 
-        Apply(text, kind);
+        // Pesan yang sama dengan yang sedang tampil: cukup perpanjang waktunya, jangan diulang
+        if (runner != null && text == currentText)
+        {
+            hideAt = Mathf.Max(hideAt, Time.unscaledTime + HoldFor(text));
+            return;
+        }
 
-        // Selalu minta buka. Kalau sudah terbuka, tween berjalan dari posisi sekarang ke posisi buka
-        // yang sama (tidak terlihat). Kalau sedang menutup, penutupan dibatalkan dan bar naik lagi.
-        animator.Trigger(openIndex);
+        // Pesan yang sama dengan antrean paling belakang: abaikan
+        if (queue.Count > 0)
+        {
+            Item last = default;
+            foreach (Item it in queue) last = it;
+            if (last.text == text) return;
+        }
 
-        if (hold != null) StopCoroutine(hold);
-        hold = StartCoroutine(HoldThenClose());
+        while (queue.Count >= Mathf.Max(1, maxQueued)) queue.Dequeue();
+        queue.Enqueue(new Item { text = text, kind = kind });
+
+        if (runner == null) runner = StartCoroutine(Run());
     }
 
-    IEnumerator HoldThenClose()
+    float HoldFor(string text) =>
+        Mathf.Max(holdSeconds, Mathf.Min(maxHoldSeconds, holdSeconds + text.Length * secondsPerCharacter));
+
+    IEnumerator Run()
     {
-        yield return new WaitForSecondsRealtime(holdSeconds);
-        hold = null;
+        while (queue.Count > 0)
+        {
+            Item it = queue.Dequeue();
+            currentText = it.text;
+            Apply(it.text, it.kind);
+
+            // Selalu minta buka. Kalau sudah terbuka, tween berjalan ke posisi yang sama (tidak terlihat).
+            // Kalau sedang menutup, penutupan dibatalkan dan bar naik lagi.
+            animator.Trigger(openIndex);
+
+            // Waktu baca baru mulai setelah bar selesai terbuka
+            hideAt = Time.unscaledTime + animator.DurationOf(openIndex) + HoldFor(it.text);
+            while (Time.unscaledTime < hideAt) yield return null;
+        }
+
+        currentText = null;
+        runner = null;
         animator.Trigger(closeIndex);
     }
 

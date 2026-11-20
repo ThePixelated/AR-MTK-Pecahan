@@ -109,7 +109,8 @@ public static class GameRules
     public static CheckVerdict CheckAreaResult(Problem problem, AreaContents upper, KotakContents lower, bool checkWholes)
     {
         Fraction remainder = problem.result - Fraction.Whole(problem.result.WholePart);
-        Fraction expected = problem.op == Operation.Add || remainder.Sign == 0 ? remainder : Fraction.Whole(1) - remainder;
+        //Fraction expected = problem.op == Operation.Add || remainder.Sign == 0 ? remainder : Fraction.Whole(1) - remainder;
+        Fraction expected = remainder;   // Add dan Subtract sama: balok hasil = sisa hasil (1/2 − 1/3 → 1/6)
 
         int cmp = lower.Total().CompareTo(expected);
         if (cmp < 0) return CheckVerdict.Kurang;
