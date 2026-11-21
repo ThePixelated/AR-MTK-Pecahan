@@ -36,7 +36,8 @@ public sealed class Media1Session : IPourSession
     public int PourCount { get; private set; }
     public int PredictionAttempts { get; private set; }
 
-    // Total bagian air dan sirup yang sudah dituang ke wadah sejak pengaturan terakhir (dipakai panel Informasi Larutan: "Air 3/4")
+    // Total bagian air dan sirup yang sudah dituang ke gelas A dan B dari gambar sejak pengaturan terakhir.
+    // Tetap tampil walau gelas sudah digabung ke wadah; kembali 0 hanya saat reset (dipakai panel Informasi Larutan: "Air 3/4")
     public long WaterPoured { get; private set; }
     public long SyrupPoured { get; private set; }
 
@@ -146,6 +147,8 @@ public sealed class Media1Session : IPourSession
 
         LiquidContainer cup = kind == LiquidKind.Water ? A : B;
         cup.Put(kind == LiquidKind.Water ? Mixture.Water(1) : Mixture.Syrup(1));
+        if (kind == LiquidKind.Water) WaterPoured += PourSections;
+        else SyrupPoured += PourSections;
         cup.NotifyChanged();
         Changed?.Invoke();
         return PourError.None;
@@ -191,7 +194,7 @@ public sealed class Media1Session : IPourSession
         Mixture moved = source.Take(n);
         W.Put(moved);
         PourCount += (int)n;
-        CountPoured(source, W, n);
+        //CountPoured(source, W, n);
 
         source.NotifyChanged();
         W.NotifyChanged();
@@ -199,12 +202,12 @@ public sealed class Media1Session : IPourSession
         return PourError.None;
     }
 
-    void CountPoured(LiquidContainer source, LiquidContainer target, long sections)
-    {
-        if (target != W) return;
-        if (source == A) WaterPoured += sections;
-        else if (source == B) SyrupPoured += sections;
-    }
+    //void CountPoured(LiquidContainer source, LiquidContainer target, long sections)
+    //{
+    //    if (target != W) return;
+    //    if (source == A) WaterPoured += sections;
+    //    else if (source == B) SyrupPoured += sections;
+    //}
 
     // ---------- konfigurasi lama (tombol ENTER; tetap ada supaya tes lama berjalan) ----------
     public ConfigError Validate(int denominator, int waterSections, int syrupSections)
@@ -285,7 +288,7 @@ public sealed class Media1Session : IPourSession
         Mixture moved = source.Take(PourSections);
         target.Put(moved);
         PourCount++;
-        CountPoured(source, target, PourSections);
+        //CountPoured(source, target, PourSections);
 
         source.NotifyChanged();    // setelah keduanya berubah, supaya tampilan tidak melihat keadaan setengah jadi
         target.NotifyChanged();

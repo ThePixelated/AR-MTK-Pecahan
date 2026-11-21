@@ -1,24 +1,19 @@
 using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+// Alur: pesan masuk -> open -> hold (holdSeconds) -> close.
+// Pesan baru kapan pun (saat opening, hold, atau closing): teks langsung diganti, bar tetap/kembali terbuka,
+// hold dihitung ulang dari pesan terakhir. Close hanya terjadi kalau tidak ada pesan baru selama holdSeconds.
 public class NotificationView : MonoBehaviour
 {
     [Header("Animasi (entri di PanelAnimator)")]
     [SerializeField] PanelAnimator animator;
     [SerializeField] int openIndex = 0;
     [SerializeField] int closeIndex = 1;
-
-    [Header("Waktu baca")]
-    [Tooltip("Waktu minimal pesan terlihat, dihitung SETELAH bar selesai terbuka (durasi entri Open tidak memotongnya).")]
+    [Tooltip("Lama bar tetap terbuka SETELAH selesai open, sebelum mulai close.")]
     [SerializeField] float holdSeconds = 2.2f;
-    [Tooltip("Tambahan waktu per karakter, supaya pesan panjang tidak hilang sebelum selesai dibaca.")]
-    [SerializeField] float secondsPerCharacter = 0.04f;
-    [SerializeField] float maxHoldSeconds = 8f;
-    [Tooltip("Pesan yang datang saat pesan lain masih tampil diantre, bukan langsung menimpa. Yang paling lama dibuang bila penuh.")]
-    [SerializeField] int maxQueued = 3;
 
     [Header("Tampilan")]
     [SerializeField] Image background;
@@ -31,16 +26,10 @@ public class NotificationView : MonoBehaviour
     [SerializeField] Color errorColor = new Color(0.98f, 0.74f, 0.74f);
     [SerializeField] Sprite infoIcon, successIcon, warningIcon, errorIcon;   // opsional
 
-    struct Item
-    {
-        public string text;
-        public FeedbackKind kind;
-    }
-
-    readonly Queue<Item> queue = new Queue<Item>();
+    bool visible;          // true dari open dipicu sampai close dipicu
+    float openFinishAt;    // kapan animasi open yang terakhir dipicu selesai
+    float hideAt;          // kapan close dipicu kalau tidak ada pesan baru
     Coroutine runner;
-    string currentText;
-    float hideAt;
 
     void OnEnable()
     {
@@ -50,65 +39,45 @@ public class NotificationView : MonoBehaviour
         if (icon) icon.raycastTarget = false;
 
         Feedback.Raised += OnRaised;
-        if (animator) animator.Trigger(closeIndex);   // pastikan tertutup tiap kali page aktif
+        visible = false;
+        runner = null;
+        if (animator) animator.TriggerSingle(closeIndex);   // pastikan tertutup tiap kali page aktif
     }
 
     void OnDisable()
     {
         Feedback.Raised -= OnRaised;
-        queue.Clear();
-        runner = null;        // coroutine ikut berhenti saat nonaktif
-        currentText = null;
+        visible = false;
+        runner = null;      // coroutine ikut berhenti saat nonaktif
     }
 
     void OnRaised(string text, FeedbackKind kind)
     {
         if (!isActiveAndEnabled || animator == null || string.IsNullOrEmpty(text)) return;
 
-        // Pesan yang sama dengan yang sedang tampil: cukup perpanjang waktunya, jangan diulang
-        if (runner != null && text == currentText)
+        Apply(text, kind);   // teks selalu langsung berganti
+
+        if (!visible)
         {
-            hideAt = Mathf.Max(hideAt, Time.unscaledTime + HoldFor(text));
-            return;
+            // Tertutup atau sedang menutup: buka (menutup yang berjalan otomatis dibatalkan, lanjut dari posisi sekarang)
+            animator.TriggerSingle(openIndex);
+            visible = true;
+            openFinishAt = Time.unscaledTime + animator.DurationOf(openIndex);
         }
+        // Sudah terbuka atau sedang membuka: tidak perlu memicu apa pun, cukup mulai ulang hold
 
-        // Pesan yang sama dengan antrean paling belakang: abaikan
-        if (queue.Count > 0)
-        {
-            Item last = default;
-            foreach (Item it in queue) last = it;
-            if (last.text == text) return;
-        }
+        hideAt = Mathf.Max(Time.unscaledTime, openFinishAt) + holdSeconds;
 
-        while (queue.Count >= Mathf.Max(1, maxQueued)) queue.Dequeue();
-        queue.Enqueue(new Item { text = text, kind = kind });
-
-        if (runner == null) runner = StartCoroutine(Run());
+        if (runner == null) runner = StartCoroutine(WaitThenClose());
     }
 
-    float HoldFor(string text) =>
-        Mathf.Max(holdSeconds, Mathf.Min(maxHoldSeconds, holdSeconds + text.Length * secondsPerCharacter));
-
-    IEnumerator Run()
+    IEnumerator WaitThenClose()
     {
-        while (queue.Count > 0)
-        {
-            Item it = queue.Dequeue();
-            currentText = it.text;
-            Apply(it.text, it.kind);
+        while (Time.unscaledTime < hideAt) yield return null;   // hideAt bisa diperpanjang pesan baru selama menunggu
 
-            // Selalu minta buka. Kalau sudah terbuka, tween berjalan ke posisi yang sama (tidak terlihat).
-            // Kalau sedang menutup, penutupan dibatalkan dan bar naik lagi.
-            animator.Trigger(openIndex);
-
-            // Waktu baca baru mulai setelah bar selesai terbuka
-            hideAt = Time.unscaledTime + animator.DurationOf(openIndex) + HoldFor(it.text);
-            while (Time.unscaledTime < hideAt) yield return null;
-        }
-
-        currentText = null;
         runner = null;
-        animator.Trigger(closeIndex);
+        visible = false;
+        animator.TriggerSingle(closeIndex);
     }
 
     void Apply(string text, FeedbackKind kind)

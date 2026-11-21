@@ -38,8 +38,10 @@ public class FractionBankItem : MonoBehaviour,
 
         if (barView) barView.Show(Piece, c);
 
+        c = new Color(c.r, c.g, c.b, 0.65f);
+
         if (!background) return;
-        if (!barView) background.color = c;                  // tanpa bar: kartu sendiri yang berwarna
+        if (!barView) { background.color = c; }                  // tanpa bar: kartu sendiri yang berwarna
         else if (tintBackground) background.color = Color.Lerp(c, Color.white, backgroundTint);
     }
 

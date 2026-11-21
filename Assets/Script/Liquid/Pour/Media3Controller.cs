@@ -59,7 +59,11 @@ public class Media3Controller : MonoBehaviour
         SetWorldRoots(true);
         binder.Bind(Session);
         Session.Changed += RefreshInfo;
-        if (trialList) trialList.Bind(Session);
+        if (trialList)
+        {
+            trialList.SetColors(binder.Colors);   // kontras sama dengan wadah kerja
+            trialList.Bind(Session);
+        }
         if (trialGrid)
         {
             trialGrid.SetColors(binder.Colors);      // kontras warna sama dengan wadah kerja

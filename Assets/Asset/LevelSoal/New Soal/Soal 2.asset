@@ -139,7 +139,7 @@ MonoBehaviour:
     lockConfig: 0
   - kind: 2
     text: 'Tersedia 4 kartu pecahan, Pilihlah dua buah kaertu di atas kemudian jumlahkan.
-      Pilihlah hasil penjumlahan yang lebih dari satu dan paling dekat dengan 11/4. '
+      Pilihlah hasil penjumlahan yang lebih dari satu dan paling dekat dengan 1 1/4. '
     image: {fileID: 552149007, guid: 54f97dfcbc2779a4e84b22985e700489, type: 3}
     presetLength: 1
     presetPartisi: 5

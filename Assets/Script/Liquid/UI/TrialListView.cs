@@ -17,6 +17,17 @@ public class TrialListView : MonoBehaviour
 
     Media3Session session;
     TrialEntryRow selected;
+    Media3ColorSettings colors;
+
+    // Panggil sebelum Bind
+    public void SetColors(Media3ColorSettings settings)
+    {
+        colors = settings;
+        if (session != null) Rebuild();
+    }
+
+    
+
 
     // Dipanggil Media3Controller saat halaman aktif
     public void Bind(Media3Session s)
@@ -57,7 +68,9 @@ public class TrialListView : MonoBehaviour
         if (emptyHint) emptyHint.SetActive(n == 0);
     }
 
-    Color ColorOf(Media3Entry e) => style == null ? Color.white : style.ColorForRatio(e.SyrupRatio);
+    Color ColorOf(Media3Entry e) =>
+        colors != null ? colors.Evaluate(style, e.SyrupRatio)
+                       : (style == null ? Color.white : style.ColorForRatio(e.SyrupRatio));
 
     //Color ColorOf(Media3Entry e)
     //{

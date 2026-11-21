@@ -14,19 +14,22 @@ public class FractionBarView : MonoBehaviour
     [SerializeField] int spriteFromDenominator = 0;   // 0 = nonaktif (selalu divider). Penyebut >= nilai ini: tanpa divider, diganti overflowSprite
     [SerializeField] Image overflowSprite;            // opsional: sprite pengganti divider (sprite diisi sendiri), anak track, awalnya nonaktif
 
+    [Header("Lebar isi minimum (kartu bank: isi ~10-12, row Kotak: biarkan 0)")]
+    [Tooltip("Lebar minimum isi bar dalam piksel canvas supaya pecahan berpenyebut besar (1/25) tetap kelihatan. 0 = proporsional murni.")]
+    [SerializeField] float minFillPixels = 0f;
+
     readonly List<Image> dividers = new List<Image>();
+    float lastFrac;
+    bool pendingWidth;     // lebar track belum diketahui saat Show (layout belum dihitung): terapkan ulang di LateUpdate
 
     public void Show(Fraction piece, Color color)
     {
         long d = piece.denominator;
         if (d <= 0) return;
 
-        // Bar = n/d dari track: ujungnya selalu jatuh tepat di divider ke-n
-        float frac = Mathf.Clamp01((float)piece.numerator / d);
-        barFill.anchorMin = new Vector2(0f, 0f);
-        barFill.anchorMax = new Vector2(frac, 1f);
-        barFill.offsetMin = Vector2.zero;
-        barFill.offsetMax = Vector2.zero;
+        // Bar = n/d dari track: ujungnya jatuh tepat di divider ke-n (kecuali dilebarkan oleh minFillPixels)
+        lastFrac = Mathf.Clamp01((float)piece.numerator / d);
+        ApplyFill();
         if (barImage) barImage.color = color;
 
         bool tooDense = spriteFromDenominator > 0 && d >= spriteFromDenominator;
@@ -38,6 +41,36 @@ public class FractionBarView : MonoBehaviour
             bool show = tooDense && overflowSprite.sprite != null;
             if (overflowSprite.gameObject.activeSelf != show) overflowSprite.gameObject.SetActive(show);
         }
+    }
+
+    void ApplyFill()
+    {
+        barFill.anchorMin = new Vector2(0f, 0f);
+        barFill.anchorMax = new Vector2(lastFrac, 1f);
+        barFill.offsetMin = Vector2.zero;
+
+        float extra = 0f;   // tambahan lebar (piksel) di sisi kanan isi
+        if (minFillPixels > 0f)
+        {
+            float trackWidth = dividerPort ? dividerPort.rect.width : 0f;
+            if (trackWidth > 0f)
+            {
+                pendingWidth = false;
+                float px = lastFrac * trackWidth;
+                if (px < minFillPixels) extra = Mathf.Min(minFillPixels, trackWidth) - px;
+            }
+            else
+            {
+                pendingWidth = true;
+            }
+        }
+        barFill.offsetMax = new Vector2(extra, 0f);
+    }
+
+    void LateUpdate()
+    {
+        if (!pendingWidth) return;
+        if (dividerPort && dividerPort.rect.width > 0f) ApplyFill();
     }
 
     void SetDividers(int count, int d)
