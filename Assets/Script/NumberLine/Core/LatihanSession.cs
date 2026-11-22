@@ -56,13 +56,14 @@ public readonly struct QuestionLayout
             case QuestionKind.LineAndPion: return new QuestionLayout(true, true, true, true, false, 0);
             case QuestionKind.MultiPosition: return new QuestionLayout(true, false, false, false, true, q.markers != null ? q.markers.Count : 0);
             case QuestionKind.MultiPion: return new QuestionLayout(true, !q.lockConfig, false, false, false, 0, true, q.lockConfig);
+            case QuestionKind.MultiPionLines: return new QuestionLayout(true, true, false, false, false, 0, true, false);
             default: return new QuestionLayout(false, false, false, false, false, 1);
         }
     }
 }
 
 public enum LatihanStart { Started, Locked, NoQuestions, InvalidLevel }
-public enum LatihanConfigResult { Applied, Unchanged, Locked, LengthOutOfRange, PartisiOutOfRange }
+public enum LatihanConfigResult { Applied, Unchanged, Locked, LengthOutOfRange, PartisiOutOfRange, NoPionSelected, LengthBelowPlacedPion }
 public enum LatihanOutcome { Correct, Wrong, Incomplete, NoQuestion, Blocked }
 public enum LatihanAdvance { NextQuestion, LevelCompleted, NotAllowed }
 public enum LatihanFailReason { None, StrikeLimit, TimeUp }
@@ -183,7 +184,7 @@ public sealed class LatihanSession
         Layout = QuestionLayout.For(q);
 
         if (Board != null) Board.Changed -= OnBoardChanged;
-        Board = q.kind == QuestionKind.MultiPion ? new MultiPionBoard(q, Options.Line, Options.MaxPions) : null;
+        Board = q.kind == QuestionKind.MultiPion || q.kind == QuestionKind.MultiPionLines ? new MultiPionBoard(q, Options.Line, Options.MaxPions) : null;
         if (Board != null) Board.Changed += OnBoardChanged;
 
         bool presetLine = q.kind == QuestionKind.PionOnly || q.kind == QuestionKind.MultiPosition;
@@ -215,9 +216,29 @@ public sealed class LatihanSession
     // true = mengubah garis akan memindahkan pion ke 0, jadi UI menampilkan popup dulu
     public bool NeedsConfirmBeforeReconfigure => Layout.showPion && Layout.lineUnlocked && PionTick != 0;
 
+    // MultiPionLines: true = mengubah partisi pion terpilih akan memindahkan pion itu ke posisi 0 (nilainya tidak ada di partisi baru)
+    public bool PartisiChangeResetsPion(int partisi) => Board != null && Board.Lines && Board.ResetsActivePionOnPartisi(partisi);
+
     public LatihanConfigResult ApplyConfig(int length, int partisi)
     {
         if (Current == null || !Layout.lineUnlocked) return LatihanConfigResult.Locked;
+
+        if (Board != null && Board.Lines)
+        {
+            // MultiPionLines: panjang dan partisi dipegang pion yang sedang dipilih
+            if (length < Options.Line.MinLength || length > Options.Line.MaxLength) return LatihanConfigResult.LengthOutOfRange;
+            if (partisi < Options.Line.MinPartisi || partisi > Options.Line.MaxPartisi) return LatihanConfigResult.PartisiOutOfRange;
+
+            switch (Board.ApplyActiveConfig(length, partisi))
+            {
+                case BoardConfigResult.Applied: return LatihanConfigResult.Applied;
+                case BoardConfigResult.NoSelection: return LatihanConfigResult.NoPionSelected;
+                case BoardConfigResult.LengthBelowPlaced: return LatihanConfigResult.LengthBelowPlacedPion;
+                case BoardConfigResult.LengthOutOfRange: return LatihanConfigResult.LengthOutOfRange;
+                case BoardConfigResult.PartisiOutOfRange: return LatihanConfigResult.PartisiOutOfRange;
+                default: return LatihanConfigResult.Unchanged;
+            }
+        }
 
         if (Board != null)
         {
@@ -281,6 +302,7 @@ public sealed class LatihanSession
                 break;
 
             case QuestionKind.MultiPion:
+            case QuestionKind.MultiPionLines:
                 result.outcome = Board.Evaluate(out result.indicators);
                 break;
 

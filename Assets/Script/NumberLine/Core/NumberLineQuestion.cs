@@ -9,7 +9,8 @@ public enum QuestionKind
     LineAndPion,     // siswa mengatur garis lalu menaruh pion di nilai target
     MultiPosition,   // garis sudah ditetapkan; beberapa titik bersurat (A, B, C) dibaca nilainya
     Comparison,      // soal teks dengan satu jawaban pecahan; tanpa garis
-    MultiPion        // garis tetap; tiap tokoh satu pion yang digeser siswa (partisi garis mengikuti pion yang dipilih). Paling akhir supaya nilai enum aset lama tidak bergeser.
+    MultiPion,       // garis tetap; tiap tokoh satu pion yang digeser siswa (partisi garis mengikuti pion yang dipilih). Paling akhir supaya nilai enum aset lama tidak bergeser.
+    MultiPionLines   // seperti MultiPion, tetapi siswa mengatur panjang dan partisi garis untuk TIAP pion (satu garis di-redraw per pion terpilih). Dinilai ByValue.
 }
 
 public enum ComparisonRule
@@ -181,6 +182,34 @@ public class NumberLineQuestion
                         else if (checkMode == PionCheckMode.ByTick && p != a.value.denominator)
                             issues.Add($"pion {who}: mode ByTick, partisi {p} harus sama dengan penyebut {a.value.denominator}");
                     }
+                    break;
+                }
+
+            case QuestionKind.MultiPionLines:
+                {
+                    // Partisi dan panjang per pion diatur siswa: soal hanya perlu memastikan nilainya mungkin ditaruh di garis
+                    if (presetLength < limits.MinLength || presetLength > limits.MaxLength)
+                        issues.Add($"garis awal: panjang {presetLength} di luar {limits.MinLength}-{limits.MaxLength}");
+
+                    int linesCount = pions != null ? pions.Count : 0;
+                    if (linesCount < 1) issues.Add("belum ada pion");
+                    else if (linesCount > maxPions) issues.Add($"{linesCount} pion melebihi batas {maxPions}");
+
+                    for (int i = 0; i < linesCount; i++)
+                    {
+                        PionAnswer a = pions[i];
+                        string who = string.IsNullOrWhiteSpace(a.label) ? NumberLineLabels.Letter(i) : a.label.Trim();
+                        if (!a.value.IsValid) { issues.Add($"nilai pion {who} belum diisi"); continue; }
+
+                        Fraction red = a.value.ToFraction().Reduce();
+                        if (red.denominator > limits.MaxPartisi)
+                            issues.Add($"pion {who}: nilai {a.value.ToText()} butuh partisi {red.denominator}, melebihi maksimal {limits.MaxPartisi}");
+                        if ((red.numerator + red.denominator - 1) / red.denominator > limits.MaxLength)
+                            issues.Add($"pion {who}: nilai {a.value.ToText()} melebihi panjang garis maksimal {limits.MaxLength}");
+                    }
+
+                    if (checkMode == PionCheckMode.ByTick)
+                        issues.Add("MultiPionLines selalu dinilai ByValue; Check Mode ByTick diabaikan");
                     break;
                 }
 

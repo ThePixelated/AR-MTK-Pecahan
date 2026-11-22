@@ -18,6 +18,7 @@ public class MultiPionSelfTest : MonoBehaviour
         TestCheckModes();
         TestLockConfig();
         TestFlow();
+        TestLinesMode();
         string summary = $"MultiPion tests: {pass} lulus, {fail} gagal";
         if (fail == 0) Debug.Log(summary); else Debug.LogError(summary);
     }
@@ -260,7 +261,9 @@ public class MultiPionSelfTest : MonoBehaviour
         {
             var mixed = new NumberLineQuestion
             {
-                kind = QuestionKind.MultiPion, presetLength = 2, checkMode = mode,
+                kind = QuestionKind.MultiPion,
+                presetLength = 2,
+                checkMode = mode,
                 pions = new List<PionAnswer> { new PionAnswer { value = FV(1, 1, 4) } }
             };
             LatihanSession m = Start(mixed);
@@ -276,7 +279,8 @@ public class MultiPionSelfTest : MonoBehaviour
     {
         var q = new NumberLineQuestion
         {
-            kind = QuestionKind.MultiPion, presetLength = 2,
+            kind = QuestionKind.MultiPion,
+            presetLength = 2,
             pions = new List<PionAnswer> { new PionAnswer { value = FV(0, 1, 2) }, new PionAnswer { value = FV(1, 1, 2) } }
         };
         LatihanSession locked = Start(q);
@@ -318,5 +322,91 @@ public class MultiPionSelfTest : MonoBehaviour
 
         s.ExitLevel();
         Check(s.Board == null, "keluar level: papan hilang");
+    }
+
+    // ---------------- MultiPionLines: panjang dan partisi milik tiap pion, satu garis, semua pion terlihat ----------------
+    static NumberLineQuestion MarathonLines()
+    {
+        NumberLineQuestion q = Marathon();
+        q.kind = QuestionKind.MultiPionLines;
+        return q;
+    }
+
+    void TestLinesMode()
+    {
+        var lim = new NumberLineLimits();
+        Check(MarathonLines().Validate(lim, 3, 5).Count == 0, "Lines: soal marathon sah tanpa partisi di soal");
+        NumberLineQuestion big = MarathonLines();
+        big.pions[0].value = FV(0, 1, 17);
+        Check(Has(big.Validate(lim, 3, 5), "melebihi maksimal"), "Lines: nilai 1/17 butuh partisi 17 > 15");
+        NumberLineQuestion far = MarathonLines();
+        far.pions[0].value = FV(6, 0, 1);
+        Check(Has(far.Validate(lim, 3, 5), "panjang garis maksimal"), "Lines: nilai 6 melebihi panjang maksimal 5");
+
+        QuestionLayout l = QuestionLayout.For(MarathonLines());
+        Check(l.multiPion && l.showLine && l.lineUnlocked && !l.chooserLocked && l.panelCount == 0, "Lines: layout MultiPion dengan garis terbuka");
+
+        LatihanSession s = Start(MarathonLines());
+        MultiPionBoard b = s.Board;
+        Check(b != null && b.Lines && b.Count == 3, "Lines: papan Lines, 3 pion");
+        Check(b.Partisi(0) == 5 && b.Partisi(1) == 5 && b.Partisi(2) == 5, "Lines: partisi awal = default 5, bukan penyebut jawaban");
+        Check(b.Length == 1 && b.Mode == PionCheckMode.ByValue, "Lines: panjang awal dari soal, dinilai ByValue");
+
+        NumberLineQuestion tickMode = MarathonLines();
+        tickMode.checkMode = PionCheckMode.ByTick;
+        Check(Start(tickMode).Board.Mode == PionCheckMode.ByValue, "Lines: ByTick di soal diabaikan");
+
+        Check(b.ApplyActiveConfig(1, 10) == BoardConfigResult.NoSelection, "Lines: belum ada pion terpilih, belum bisa atur garis");
+        Check(s.ApplyConfig(1, 10) == LatihanConfigResult.NoPionSelected, "Lines: session meneruskan NoPionSelected");
+
+        // tiap pion punya partisinya sendiri
+        b.Select(0);
+        Check(s.ApplyConfig(1, 10) == LatihanConfigResult.Applied && s.Config.partisi == 10 && b.Partisi(0) == 10 && b.Partisi(1) == 5, "Lines: partisi 10 hanya untuk pion Rahmi");
+        Check(b.PlaceAtNormalized(0, 0.5f) == 5 && b.ValueOf(0).ValueEquals(new Fraction(1, 2)), "Lines: Rahmi di 5/10");
+
+        b.Select(1);
+        Check(s.Config.partisi == 5, "Lines: pilih Ari, garis kembali ke partisi Ari");
+        b.ApplyActiveConfig(1, 4);
+        Check(b.PlaceAtNormalized(1, 0.75f) == 3 && b.ValueOf(1).ValueEquals(new Fraction(3, 4)), "Lines: Ari di 3/4 pada partisi 4");
+        Check(Near(b.NormalizedOf(0), 0.5f) && Near(b.NormalizedOf(1), 0.75f), "Lines: dua pion beda partisi sama-sama tampil di garis yang sama");
+
+        b.Select(2);
+        b.ApplyActiveConfig(1, 20);
+        Check(b.PlaceAtNormalized(2, 0.6f) == 12 && b.ValueOf(2).ValueEquals(new Fraction(3, 5)), "Lines: Sinta di 12/20");
+        LatihanOutcome outcome = b.Evaluate(out NumberLineIndicator[] ind);
+        Check(outcome == LatihanOutcome.Correct && ind[0] == NumberLineIndicator.Correct && ind[1] == NumberLineIndicator.Correct && ind[2] == NumberLineIndicator.Correct,
+              "Lines: 5/10, 3/4, 12/20 (3/5) dinilai benar menurut nilai");
+
+        // ganti partisi pion yang sudah di garis: nilai dipertahankan kalau ada di partisi baru
+        b.Select(0);
+        Check(!b.ResetsActivePionOnPartisi(20), "Lines: 5/10 ada di partisi 20");
+        Check(b.ApplyActiveConfig(1, 20) == BoardConfigResult.Applied && b.TickOf(0) == 10 && b.ValueOf(0).ValueEquals(new Fraction(1, 2)), "Lines: Rahmi jadi 10/20, nilai tetap 1/2");
+        Check(b.Evaluate(out _) == LatihanOutcome.Correct, "Lines: 10/20 tetap benar");
+
+        // ... dan dipindah ke posisi 0 (tetap di garis) kalau tidak ada
+        Check(b.ResetsActivePionOnPartisi(3), "Lines: 1/2 tidak ada di partisi 3");
+        Check(b.ApplyActiveConfig(1, 3) == BoardConfigResult.Applied && b.IsPlaced(0) && b.TickOf(0) == 0 && b.Partisi(0) == 3, "Lines: partisi 3 memindahkan Rahmi ke posisi 0, tetap di garis");
+        Check(b.Evaluate(out _) == LatihanOutcome.Wrong, "Lines: Rahmi di 0 (semua pion masih di garis) = Wrong, bukan Incomplete");
+        b.ApplyActiveConfig(1, 10);
+        b.PlaceAtNormalized(0, 0.5f);
+
+        // panjang: semua pion yang sudah ditaruh harus tetap kelihatan
+        b.Select(2);
+        Check(b.ApplyActiveConfig(2, 20) == BoardConfigResult.Applied && b.Length == 2, "Lines: Sinta atur panjang 2");
+        b.PlaceAtNormalized(2, 0.75f);
+        Check(b.ValueOf(2).ValueEquals(new Fraction(3, 2)), "Lines: Sinta digeser ke 3/2");
+
+        b.Select(0);
+        Check(b.Length == 2 && s.Config.length == 2, "Lines: Rahmi punya panjang 1, tapi garis tetap 2 supaya Sinta (3/2) kelihatan");
+        Check(Near(b.NormalizedOf(0), 0.25f) && Near(b.NormalizedOf(2), 0.75f), "Lines: semua pion tampil di garis panjang 2 menurut nilainya");
+        Check(b.ApplyActiveConfig(1, 10) == BoardConfigResult.LengthBelowPlaced && s.ApplyConfig(1, 10) == LatihanConfigResult.LengthBelowPlacedPion, "Lines: panjang di bawah posisi pion lain ditolak");
+        Check(b.RequiredLength() == 2, "Lines: panjang minimum = 2");
+
+        b.Remove(2);
+        Check(b.RequiredLength() == 1 && b.Length == 1, "Lines: Sinta dicabut, garis kembali ke panjang Rahmi (1)");
+
+        // mode biasa tidak berubah: ApplyActiveConfig tidak berlaku
+        Check(Start(Marathon()).Board.ApplyActiveConfig(1, 5) == BoardConfigResult.NotSupported, "MultiPion biasa: ApplyActiveConfig tidak berlaku");
+        Check(!Start(Marathon()).Board.Lines, "MultiPion biasa: bukan mode Lines");
     }
 }

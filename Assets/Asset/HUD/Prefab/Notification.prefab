@@ -295,7 +295,7 @@ MonoBehaviour:
   animator: {fileID: 3753079179210824424}
   openIndex: 0
   closeIndex: 1
-  holdSeconds: 7
+  holdSeconds: 3
   background: {fileID: 6271282104080954133}
   message: {fileID: 7867160944960666872}
   icon: {fileID: 1598846504256235292}

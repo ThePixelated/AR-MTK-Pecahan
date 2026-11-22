@@ -1,15 +1,22 @@
 using System;
 
+public enum BoardConfigResult { Applied, Unchanged, NotSupported, NoSelection, LengthOutOfRange, PartisiOutOfRange, LengthBelowPlaced }
+
 // Papan soal MultiPion: beberapa pion bergerak (satu per tokoh) pada SATU garis bilangan.
 // Tiap pion punya partisi sendiri (default: penyebut jawabannya). Garis menampilkan partisi pion yang sedang dipilih.
 // Posisi pion disimpan sebagai nilai (tick / partisi pion itu), bukan tick garis, jadi pion lain TIDAK bergeser
 // walau partisi garis berganti. Murni data: tanpa UnityEngine, bisa diuji tanpa scene.
+//
+// Mode Lines (QuestionKind.MultiPionLines): tiap pion juga membawa panjang dan partisi buatan siswa. Garis tetap SATU dan
+// di-redraw mengikuti pion terpilih. Supaya semua pion yang sudah ditaruh tetap kelihatan di garis yang sama, panjang garis
+// yang tampil = max(panjang pion terpilih, panjang minimum yang dibutuhkan pion lain). Dinilai selalu ByValue.
 public sealed class MultiPionBoard
 {
     sealed class Pion
     {
         public string label;
         public int partisi;
+        public int length;     // hanya mode Lines: panjang garis milik pion ini
         public FractionValue answer;
         public bool placed;
         public int tick;       // tick pada partisi pion ini (0..Length * partisi)
@@ -17,8 +24,10 @@ public sealed class MultiPionBoard
 
     readonly Pion[] pions;
     readonly NumberLineLimits limits;
+    int fixedLength;                                          // mode biasa: panjang garis satu untuk semua pion
 
-    public int Length { get; private set; }
+    public bool Lines { get; }
+    public int Length => Lines ? LinesLength() : fixedLength; // mode Lines: panjang yang TAMPIL
     public PionCheckMode Mode { get; }
     public int SelectedIndex { get; private set; } = -1;      // pion yang partisinya sedang tampil di garis; -1 = belum ada
 
@@ -27,20 +36,22 @@ public sealed class MultiPionBoard
     public MultiPionBoard(NumberLineQuestion q, NumberLineLimits limits, int maxPions)
     {
         this.limits = limits ?? new NumberLineLimits();
-        Mode = q.checkMode;
-        Length = Math.Min(Math.Max(q.presetLength, this.limits.MinLength), this.limits.MaxLength);
+        Lines = q.kind == QuestionKind.MultiPionLines;
+        Mode = Lines ? PionCheckMode.ByValue : q.checkMode;
+        fixedLength = Math.Min(Math.Max(q.presetLength, this.limits.MinLength), this.limits.MaxLength);
 
         int count = q.pions == null ? 0 : Math.Min(q.pions.Count, Math.Max(0, maxPions));
         pions = new Pion[count];
         for (int i = 0; i < count; i++)
         {
             PionAnswer a = q.pions[i] ?? new PionAnswer();
-            int p = a.ResolvedPartisi;
+            int p = Lines ? this.limits.DefaultPartisi : a.ResolvedPartisi;      // Lines: mulai dari default, bukan penyebut jawaban (tidak membocorkan)
             if (p <= 0) p = this.limits.DefaultPartisi;
             pions[i] = new Pion
             {
                 label = a.label ?? "",
                 partisi = Math.Min(Math.Max(p, this.limits.MinPartisi), this.limits.MaxPartisi),
+                length = fixedLength,
                 answer = a.value
             };
         }
@@ -67,7 +78,7 @@ public sealed class MultiPionBoard
     public float NormalizedOf(int i)
     {
         if (!IsPlaced(i)) return 0f;
-        return (float)pions[i].tick / ((float)Length * pions[i].partisi);
+        return (float)pions[i].tick / ((float)Length * pions[i].partisi);      // Length mode Lines selalu >= nilai pion yang ditaruh, jadi hasilnya <= 1
     }
 
     public int PlacedCount
@@ -92,16 +103,67 @@ public sealed class MultiPionBoard
     // Panjang garis berubah (hanya kalau soal tidak mengunci konfigurasi). Pion yang jadi di luar garis dicabut.
     public bool ApplyLength(int length)
     {
-        int clamped = Math.Min(Math.Max(length, limits.MinLength), limits.MaxLength);
-        if (clamped == Length) return false;
+        if (Lines) return false;      // mode Lines memakai ApplyActiveConfig
 
-        Length = clamped;
+        int clamped = Math.Min(Math.Max(length, limits.MinLength), limits.MaxLength);
+        if (clamped == fixedLength) return false;
+
+        fixedLength = clamped;
         foreach (Pion p in pions)
         {
-            if (p.placed && p.tick > Length * p.partisi) { p.placed = false; p.tick = 0; }
+            if (p.placed && p.tick > fixedLength * p.partisi) { p.placed = false; p.tick = 0; }
         }
         Changed?.Invoke();
         return true;
+    }
+
+    // ---------- mode Lines ----------
+    // Panjang minimum supaya semua pion yang sudah ditaruh tetap ada di garis
+    public int RequiredLength()
+    {
+        int need = limits.MinLength;
+        foreach (Pion p in pions)
+            if (p.placed) need = Math.Max(need, (p.tick + p.partisi - 1) / p.partisi);
+        return need;
+    }
+
+    int LinesLength()
+    {
+        int own = SelectedIndex >= 0 ? pions[SelectedIndex].length : (pions.Length > 0 ? pions[0].length : fixedLength);
+        return Math.Min(Math.Max(own, RequiredLength()), limits.MaxLength);
+    }
+
+    // true = mengganti partisi pion terpilih ke nilai ini memindahkan pionnya ke posisi 0 (nilainya tidak jatuh di tick partisi baru)
+    public bool ResetsActivePionOnPartisi(int partisi)
+    {
+        if (!Lines || SelectedIndex < 0 || partisi <= 0) return false;
+        Pion p = pions[SelectedIndex];
+        return p.placed && p.partisi != partisi && ((long)p.tick * partisi) % p.partisi != 0;
+    }
+
+    // Menyimpan panjang dan partisi milik pion terpilih. Pion yang sudah di garis dipertahankan nilainya (tick dikonversi);
+    // kalau nilainya tidak ada di partisi baru, pion tetap di garis tapi dipindah ke posisi 0. Panjang tidak boleh di bawah posisi pion mana pun yang sudah ditaruh.
+    public BoardConfigResult ApplyActiveConfig(int length, int partisi)
+    {
+        if (!Lines) return BoardConfigResult.NotSupported;
+        if (SelectedIndex < 0) return BoardConfigResult.NoSelection;
+        if (length < limits.MinLength || length > limits.MaxLength) return BoardConfigResult.LengthOutOfRange;
+        if (partisi < limits.MinPartisi || partisi > limits.MaxPartisi) return BoardConfigResult.PartisiOutOfRange;
+        if (length < RequiredLength()) return BoardConfigResult.LengthBelowPlaced;
+
+        Pion p = pions[SelectedIndex];
+        if (p.length == length && p.partisi == partisi) return BoardConfigResult.Unchanged;
+
+        if (p.placed && p.partisi != partisi)
+        {
+            long scaled = (long)p.tick * partisi;
+            if (scaled % p.partisi == 0) p.tick = (int)(scaled / p.partisi);
+            else p.tick = 0;      // tetap di garis, kembali ke 0 (tidak perlu ditarik lagi dari tombolnya)
+        }
+        p.partisi = partisi;
+        p.length = length;
+        Changed?.Invoke();
+        return BoardConfigResult.Applied;
     }
 
     // ---------- interaksi ----------
@@ -137,13 +199,14 @@ public sealed class MultiPionBoard
         if (!Valid(i)) return -1;
 
         Pion p = pions[i];
+        bool selectionChanged = SelectedIndex != i;
+        SelectedIndex = i;                       // dulu: mode Lines menghitung Length dari pion terpilih
         int max = Length * p.partisi;
         int clamped = tick < 0 ? 0 : (tick > max ? max : tick);
 
-        bool changed = !p.placed || p.tick != clamped || SelectedIndex != i;
+        bool changed = !p.placed || p.tick != clamped || selectionChanged;
         p.placed = true;
         p.tick = clamped;
-        SelectedIndex = i;
         if (changed) Changed?.Invoke();
         return clamped;
     }

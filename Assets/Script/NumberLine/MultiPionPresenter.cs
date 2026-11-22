@@ -6,6 +6,9 @@ using UnityEngine.UI;
 public static class MultiPionTexts
 {
     public const string Incomplete = "Taruh semua hewan di garis bilangan dulu ya.";
+    public const string PickPionFirst = "Pilih hewannya dulu, baru atur garis bilangannya ya.";
+    public const string PartisiResetsPion = "Posisi hewan ini tidak ada di partisi yang baru, jadi hewan akan dipindah ke posisi 0. Ingin melanjutkan?";
+    public static string LengthTooShort(int min) => $"Ada hewan yang posisinya melewati garis ini. Panjang garis minimal {min}.";
 }
 
 // Tampilan soal MultiPion pada layout baru: tombol tokoh di kiri (di-instantiate otomatis), drag ke kanan jadi hewan yang

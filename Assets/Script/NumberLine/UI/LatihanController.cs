@@ -53,6 +53,7 @@ public class LatihanController : MonoBehaviour
     [SerializeField] TMP_Text newSoalText;                       // SoalTxt di NewLayoutLevel
     [SerializeField] GameObject newImageContainer;               // ImageContainer di NewLayoutLevel
     [SerializeField] Image newSoalImage;                         // gambar di dalam ImageContainer baru
+    [SerializeField] LineSettingsPanel newLineSettings;          // PanelGarisBilangan-Prefab di LeftSide/NewLayoutLevel; hanya tampil untuk MultiPionLines
     [SerializeField] MultiPionPresenter multiPion;               // tombol tokoh, pion di garis, highlight, outline
 
     [Header("Navbar (opsional)")]
@@ -77,6 +78,11 @@ public class LatihanController : MonoBehaviour
 
     // View yang sedang dipakai soal aktif: layout baru memakai view-nya sendiri
     NumberLineView ActiveView => usingNewLayout && newView != null ? newView : view;
+
+    // Panel atur garis yang sedang dipakai: layout baru memakai panelnya sendiri kalau diisi
+    LineSettingsPanel ActiveLineSettings => usingNewLayout && newLineSettings != null ? newLineSettings : lineSettings;
+
+    bool LinesMode => Session.Board != null && Session.Board.Lines;
 
     LatihanSession CreateSession()
     {
@@ -116,6 +122,12 @@ public class LatihanController : MonoBehaviour
         lineSettings.Configure(options.Line);
         lineSettings.LengthChosen += OnLengthChosen;
         lineSettings.PartisiChanged += OnPartisiChanged;
+        if (newLineSettings)
+        {
+            newLineSettings.Configure(options.Line);
+            newLineSettings.LengthChosen += OnLengthChosen;
+            newLineSettings.PartisiChanged += OnPartisiChanged;
+        }
         view.PionDragged += OnPionDragged;
         if (newView) newView.PionDragged += OnPionDragged;
         soalGrid.CellTapped += OnCellTapped;
@@ -146,6 +158,11 @@ public class LatihanController : MonoBehaviour
         {
             lineSettings.LengthChosen -= OnLengthChosen;
             lineSettings.PartisiChanged -= OnPartisiChanged;
+        }
+        if (newLineSettings)
+        {
+            newLineSettings.LengthChosen -= OnLengthChosen;
+            newLineSettings.PartisiChanged -= OnPartisiChanged;
         }
         if (view) view.PionDragged -= OnPionDragged;
         if (newView) newView.PionDragged -= OnPionDragged;
@@ -267,9 +284,7 @@ public class LatihanController : MonoBehaviour
 
         // teks dan gambar soal
         if (soalText) soalText.text = q.FormattedText();
-        bool hasImage = q.image != null;
-        if (imageContainer) imageContainer.SetActive(hasImage);
-        if (soalImage && hasImage) { soalImage.SetNativeSize(); soalImage.sprite = q.image; }
+        ApplySoalImage(imageContainer, soalImage, q.image);
 
         UpdateNavbar();
         UpdateCheckButton();
@@ -292,7 +307,8 @@ public class LatihanController : MonoBehaviour
         if (Session.Current == null) return;
         ActiveView.SetConfig(Session.Config);
         ActiveView.SetPionTick(Session.PionTick);
-        lineSettings.Show(Session.Config);
+        ActiveLineSettings.Show(Session.Config);
+        UpdateLinesPanelLock();
         UpdateNavbar();
         UpdateCheckButton();
     }
@@ -333,14 +349,13 @@ public class LatihanController : MonoBehaviour
 
         if (layout.multiPion) multiPion.Show(Session.Board);
         else if (multiPion) multiPion.Clear();
+        SetupLinesPanel();
 
         if (layout.panelCount > 0) soalGrid.Build(Session.Soal);
         else soalGrid.Clear();
 
         if (newSoalText) newSoalText.text = q.FormattedText();
-        bool hasImage = q.image != null;
-        if (newImageContainer) newImageContainer.SetActive(hasImage);
-        if (newSoalImage && hasImage) { newSoalImage.SetNativeSize(); newSoalImage.sprite = q.image; }
+        ApplySoalImage(newImageContainer, newSoalImage, q.image);
 
         WarnOverrideLimits(q, layout);
         UpdateNavbar();
@@ -375,7 +390,25 @@ public class LatihanController : MonoBehaviour
     {
         if (Session.Current == null || !Session.Layout.lineUnlocked || (length == Session.Config.length && partisi == Session.Config.partisi))
         {
-            if (Session.Current != null) lineSettings.Show(Session.Config);
+            if (Session.Current != null) ActiveLineSettings.Show(Session.Config);
+            return;
+        }
+
+        // MultiPionLines: pengaturan dipegang pion terpilih; pion yang nilainya tidak ada di partisi baru dipindah ke posisi 0 (dengan konfirmasi)
+        if (LinesMode)
+        {
+            if (Session.Board.SelectedIndex < 0)
+            {
+                Feedback.Show(MultiPionTexts.PickPionFirst, FeedbackKind.Info);
+                ActiveLineSettings.Show(Session.Config);
+                return;
+            }
+            if (Session.PartisiChangeResetsPion(partisi) && confirmDialog != null)
+            {
+                confirmDialog.Ask(MultiPionTexts.PartisiResetsPion, () => ApplyConfig(length, partisi), () => ActiveLineSettings.Show(Session.Config));
+                return;
+            }
+            ApplyConfig(length, partisi);
             return;
         }
 
@@ -392,9 +425,52 @@ public class LatihanController : MonoBehaviour
         LatihanConfigResult r = Session.ApplyConfig(length, partisi);
         if (r == LatihanConfigResult.LengthOutOfRange || r == LatihanConfigResult.PartisiOutOfRange)
             Feedback.Show(LatihanMessages.LineOutOfRange(options.Line), FeedbackKind.Warning);
+        else if (r == LatihanConfigResult.NoPionSelected)
+            Feedback.Show(MultiPionTexts.PickPionFirst, FeedbackKind.Info);
+        else if (r == LatihanConfigResult.LengthBelowPlacedPion)
+            Feedback.Show(MultiPionTexts.LengthTooShort(Session.Board.RequiredLength()), FeedbackKind.Warning);
 
-        lineSettings.Show(Session.Config);
+        ActiveLineSettings.Show(Session.Config);
         ActiveView.SetPionTick(Session.PionTick, true);     // garis berubah: pion kembali ke 0 tanpa meluncur
+    }
+
+    // ---------------- MultiPionLines: panel atur garis di layout baru ----------------
+    // Panel hanya tampil untuk soal MultiPionLines; soal lain (termasuk MultiPion biasa) di layout baru tidak berubah
+    void SetupLinesPanel()
+    {
+        if (!newLineSettings) return;
+
+        bool show = LinesMode;
+        newLineSettings.gameObject.SetActive(show);
+        if (!show) return;
+
+        newLineSettings.Configure(options.Line);
+        newLineSettings.Show(Session.Config);
+        UpdateLinesPanelLock();
+    }
+
+    // Belum ada pion terpilih = belum ada yang diatur: panel dikunci
+    void UpdateLinesPanelLock()
+    {
+        if (!usingNewLayout || !newLineSettings || !LinesMode) return;
+        newLineSettings.SetLocked(Session.Board.SelectedIndex < 0);
+    }
+
+    // Gambar soal: sprite dipasang DULU baru SetNativeSize (kalau terbalik, ukuran mengikuti sprite soal sebelumnya),
+    // lalu layout induk dipaksa dihitung ulang supaya ukuran langsung benar
+    void ApplySoalImage(GameObject container, Image image, Sprite sprite)
+    {
+        bool has = sprite != null;
+        if (container) container.SetActive(has);
+        if (!image || !has) return;
+
+        image.sprite = sprite;
+        image.SetNativeSize();
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(image.rectTransform);
+        if (container && container.transform is RectTransform c) LayoutRebuilder.ForceRebuildLayoutImmediate(c);
+        if (container && container.transform.parent is RectTransform p) LayoutRebuilder.ForceRebuildLayoutImmediate(p);
     }
 
     void OnPionDragged(int tick) => Session.SetPionTick(tick);
